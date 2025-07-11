@@ -1,0 +1,110 @@
+OVERVIEW: How the News Scraper Should Work
+🔄 1. User Inputs (via Frontend)
+The user (you) provides:
+
+✅ A list of news websites (URLs) to scrape.
+
+⏱️ A time interval (e.g., every 20 minutes).
+
+🎛️ Start/Stop controls to manage the scraper.
+
+This is stored in a config.json or database.
+
+🕸️ 2. Scraping Process (Backend)
+Every X minutes, the scraper:
+
+Loops through each site URL.
+
+Uses BeautifulSoup to extract titles or summaries.
+
+Cleans and compiles these into a raw_news.json.
+
+🧠 Example output:
+
+json
+Copy
+Edit
+[
+  {
+    "source": "BBC",
+    "original": "Global temperatures reach new highs",
+    "timestamp": "2025-07-11T16:40:00Z"
+  },
+  ...
+]
+If the site's structure changes, update the scraper function for that site. You can make it modular: one function per site.
+
+🔁 3. Rephrasing with Mixtral (via OpenRouter)
+For each scraped item:
+
+Send a rephrasing prompt (like the one above) to the Mixtral-8x7B model.
+
+Receive rephrased output.
+
+Save into rephrased_news.json.
+
+🧠 Rephrased output:
+
+json
+Copy
+Edit
+[
+  {
+    "source": "BBC",
+    "original": "Global temperatures reach new highs",
+    "rephrased": "World temperatures hit unprecedented levels, experts say",
+    "timestamp": "2025-07-11T16:40:00Z"
+  }
+]
+🌐 4. Expose Data via API (FastAPI)
+You create REST endpoints like:
+
+GET /news → Returns all rephrased news.
+
+GET /config → Returns current config (sites + interval).
+
+POST /config → Updates config.
+
+POST /start and POST /stop → Controls the scheduler.
+
+These are backed by Python logic and JSON file/database updates.
+
+🧭 5. Frontend UI
+The UI allows:
+
+✅ Adding/removing news sites.
+
+⏱️ Setting scrape interval (dropdown or slider).
+
+▶️ Start/Stop scraper.
+
+📄 Viewing latest rephrased news.
+
+Uses fetch() or Axios to call the FastAPI backend.
+
+🧱 HOW IT SHOULD BE STRUCTURED
+Layer	Tool / File	Responsibility
+Frontend	React + Tailwind	User input, live config, view news
+Backend API	FastAPI	Handle config, expose /news, control
+Scheduler	APScheduler	Run scrape-rephrase job every X mins
+Scraper	BeautifulSoup	Pulls content from URLs
+Rephraser	OpenRouter API	Sends text, receives reworded version
+Storage	JSON (or SQLite)	Raw and rephrased news
+
+🛠️ Example Flow
+text
+Copy
+Edit
+User adds URLs & 20-min interval in UI
+       ↓
+Config saved to backend
+       ↓
+Scheduler triggers every 20 min
+       ↓
+Scraper gets headlines → saves to raw_news.json
+       ↓
+Rephraser sends each to OpenRouter Mixtral → saves to rephrased_news.json
+       ↓
+/news API serves rephrased data to frontend
+       ↓
+User sees clean, summarized news in UI
