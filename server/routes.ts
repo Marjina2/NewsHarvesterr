@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertNewsSourceSchema, updateScraperConfigSchema } from "@shared/schema";
+import { insertNewsSourceSchema, insertNewsArticleSchema, updateScraperConfigSchema } from "@shared/schema";
 import { z } from "zod";
 import { spawn } from "child_process";
 import path from "path";
@@ -50,6 +50,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(articles);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch news articles" });
+    }
+  });
+
+  app.post("/api/articles", async (req, res) => {
+    try {
+      const validatedData = insertNewsArticleSchema.parse(req.body);
+      const article = await storage.createNewsArticle(validatedData);
+      res.json(article);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid data", details: error.errors });
+      } else {
+        res.status(500).json({ error: "Failed to create news article" });
+      }
+    }
+  });
+
+  app.get("/api/articles/pending", async (req, res) => {
+    try {
+      const articles = await storage.getNewsArticlesByStatus("pending");
+      res.json(articles);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch pending articles" });
+    }
+  });
+
+  app.put("/api/articles/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status, rephrasedTitle } = req.body;
+      
+      await storage.updateNewsArticleStatus(id, status, rephrasedTitle);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update article status" });
     }
   });
 
@@ -109,6 +144,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true, message: "Scraper stopped successfully" });
     } catch (error) {
       res.status(500).json({ error: "Failed to stop scraper" });
+    }
+  });
+
+  app.post("/api/scraper/last-run", async (req, res) => {
+    try {
+      const config = await storage.getScraperConfig();
+      await storage.updateScraperConfig({ 
+        isActive: config.isActive,
+        intervalMinutes: config.intervalMinutes 
+      });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update last run" });
     }
   });
 

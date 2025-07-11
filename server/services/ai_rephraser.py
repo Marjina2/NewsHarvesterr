@@ -12,7 +12,7 @@ class AIRephraser:
     def __init__(self):
         self.api_key = os.getenv('OPENROUTER_API_KEY') or os.getenv('OPENROUTER_KEY') or ""
         self.base_url = "https://openrouter.ai/api/v1"
-        self.model = "mistralai/mistral-7b-instruct:free"
+        self.model = "mistralai/mistral-small"
         
         if not self.api_key:
             logger.warning("OpenRouter API key not found. AI rephrasing will be disabled.")

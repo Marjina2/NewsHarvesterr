@@ -3,6 +3,8 @@ import sys
 import os
 import json
 import logging
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from services.scheduler import NewsScraperScheduler
 from services.scraper import NewsScraper, load_sources_from_json
 from services.ai_rephraser import AIRephraser

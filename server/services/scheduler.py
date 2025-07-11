@@ -3,8 +3,9 @@ import time
 import json
 import logging
 from datetime import datetime
-from scraper import NewsScraper, save_articles_to_json, load_sources_from_json
-from ai_rephraser import AIRephraser, save_rephrased_articles
+from .scraper import NewsScraper, save_articles_to_json, load_sources_from_json
+from .ai_rephraser import AIRephraser, save_rephrased_articles
+from .storage_integration import StorageIntegration
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -13,6 +14,7 @@ class NewsScraperScheduler:
     def __init__(self):
         self.scraper = NewsScraper()
         self.rephraser = AIRephraser()
+        self.storage = StorageIntegration()
         self.is_running = False
         
     def load_config(self) -> dict:
@@ -40,10 +42,10 @@ class NewsScraperScheduler:
         logger.info("Starting scheduled scrape and rephrase job")
         
         try:
-            # Load sources
-            sources = load_sources_from_json()
+            # Get active sources from storage
+            sources = self.storage.get_active_sources()
             if not sources:
-                logger.warning("No sources configured")
+                logger.warning("No active sources configured")
                 return
             
             # Scrape articles
@@ -52,21 +54,51 @@ class NewsScraperScheduler:
                 logger.warning("No articles scraped")
                 return
             
-            # Save raw articles
-            save_articles_to_json(articles)
+            logger.info(f"Scraped {len(articles)} articles")
             
-            # Rephrase articles
-            rephrased_articles = self.rephraser.rephrase_articles(articles)
+            # Save articles to storage
+            if self.storage.save_scraped_articles(articles):
+                logger.info("Successfully saved articles to storage")
+            else:
+                logger.error("Failed to save articles to storage")
+                return
             
-            # Save rephrased articles
-            save_rephrased_articles(rephrased_articles)
+            # Process pending articles for rephrasing
+            pending_articles = self.storage.get_pending_articles()
+            logger.info(f"Found {len(pending_articles)} pending articles for rephrasing")
             
-            # Update last run time
-            config = self.load_config()
-            config["last_run"] = datetime.now().isoformat()
-            self.save_config(config)
+            for article in pending_articles:
+                try:
+                    # Update status to processing
+                    self.storage.update_article_status(article['id'], 'processing')
+                    
+                    # Rephrase the article
+                    rephrased_title = self.rephraser.rephrase_headline(
+                        article['originalTitle'], 
+                        article['sourceName']
+                    )
+                    
+                    if rephrased_title:
+                        # Update with rephrased title
+                        self.storage.update_article_status(
+                            article['id'], 
+                            'completed', 
+                            rephrased_title
+                        )
+                        logger.info(f"Rephrased: {article['originalTitle'][:50]}...")
+                    else:
+                        # Mark as failed
+                        self.storage.update_article_status(article['id'], 'failed')
+                        logger.warning(f"Failed to rephrase: {article['originalTitle'][:50]}...")
+                        
+                except Exception as e:
+                    logger.error(f"Error processing article {article['id']}: {str(e)}")
+                    self.storage.update_article_status(article['id'], 'failed')
             
-            logger.info(f"Completed job: {len(articles)} articles scraped and rephrased")
+            # Update last run time in storage
+            self.storage.update_scraper_last_run()
+            
+            logger.info(f"Completed job: {len(articles)} articles scraped, {len(pending_articles)} processed")
             
         except Exception as e:
             logger.error(f"Error in scheduled job: {str(e)}")

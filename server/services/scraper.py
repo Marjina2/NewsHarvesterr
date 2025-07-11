@@ -19,37 +19,77 @@ class NewsScraper:
     def scrape_bbc_news(self, url: str) -> List[Dict]:
         """Scrape BBC News headlines"""
         try:
-            response = self.session.get(url, timeout=10)
+            # Try RSS feed first as it's more reliable
+            rss_url = "http://feeds.bbci.co.uk/news/rss.xml"
+            response = self.session.get(rss_url, timeout=10)
             response.raise_for_status()
             
-            soup = BeautifulSoup(response.content, 'html.parser')
+            soup = BeautifulSoup(response.content, 'xml')
             articles = []
             
-            # BBC News specific selectors
-            headlines = soup.find_all(['h2', 'h3'], class_=['sc-4fedabc7-3', 'sc-8ea7699c-3'])
+            # Parse RSS feed
+            items = soup.find_all('item')[:10]
             
-            for headline in headlines[:10]:  # Limit to 10 articles
-                title = headline.get_text(strip=True)
-                if title and len(title) > 20:  # Filter out short titles
-                    link_element = headline.find('a') or headline.find_parent('a')
-                    article_url = ""
-                    if link_element:
-                        article_url = urljoin(url, link_element.get('href', ''))
-                    
-                    articles.append({
-                        'title': title,
-                        'url': article_url,
-                        'source': 'BBC News'
-                    })
+            for item in items:
+                title_elem = item.find('title')
+                link_elem = item.find('link')
+                
+                if title_elem and title_elem.text:
+                    title = title_elem.text.strip()
+                    if len(title) > 20:
+                        article_url = link_elem.text.strip() if link_elem else ""
+                        
+                        articles.append({
+                            'title': title,
+                            'url': article_url,
+                            'source': 'BBC News'
+                        })
             
             return articles
             
         except Exception as e:
-            logger.error(f"Error scraping BBC News: {str(e)}")
-            return []
+            logger.error(f"Error scraping BBC News RSS: {str(e)}")
+            # Fallback to generic scraping
+            return self.scrape_generic_news(url, "BBC News")
     
     def scrape_reuters(self, url: str) -> List[Dict]:
         """Scrape Reuters headlines"""
+        try:
+            # Try RSS feed first as it's more reliable
+            rss_url = "https://feeds.reuters.com/reuters/topNews"
+            response = self.session.get(rss_url, timeout=10)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.content, 'xml')
+            articles = []
+            
+            # Parse RSS feed
+            items = soup.find_all('item')[:10]
+            
+            for item in items:
+                title_elem = item.find('title')
+                link_elem = item.find('link')
+                
+                if title_elem and title_elem.text:
+                    title = title_elem.text.strip()
+                    if len(title) > 20:
+                        article_url = link_elem.text.strip() if link_elem else ""
+                        
+                        articles.append({
+                            'title': title,
+                            'url': article_url,
+                            'source': 'Reuters'
+                        })
+            
+            return articles
+            
+        except Exception as e:
+            logger.error(f"Error scraping Reuters RSS: {str(e)}")
+            # Fallback to generic scraping
+            return self.scrape_generic_news(url, "Reuters")
+    
+    def scrape_hackernews(self, url: str) -> List[Dict]:
+        """Scrape Hacker News headlines"""
         try:
             response = self.session.get(url, timeout=10)
             response.raise_for_status()
@@ -57,27 +97,32 @@ class NewsScraper:
             soup = BeautifulSoup(response.content, 'html.parser')
             articles = []
             
-            # Reuters specific selectors
-            headlines = soup.find_all(['h2', 'h3'], class_=['story-title', 'heading'])
+            # Hacker News specific selectors
+            story_rows = soup.find_all('tr', class_='athing')[:10]
             
-            for headline in headlines[:10]:
-                title = headline.get_text(strip=True)
-                if title and len(title) > 20:
-                    link_element = headline.find('a') or headline.find_parent('a')
-                    article_url = ""
-                    if link_element:
-                        article_url = urljoin(url, link_element.get('href', ''))
-                    
-                    articles.append({
-                        'title': title,
-                        'url': article_url,
-                        'source': 'Reuters'
-                    })
+            for story in story_rows:
+                title_elem = story.find('span', class_='titleline')
+                if title_elem:
+                    link_elem = title_elem.find('a')
+                    if link_elem:
+                        title = link_elem.get_text(strip=True)
+                        article_url = link_elem.get('href', '')
+                        
+                        # Handle relative URLs
+                        if article_url.startswith('item?id='):
+                            article_url = urljoin(url, article_url)
+                        
+                        if title and len(title) > 20:
+                            articles.append({
+                                'title': title,
+                                'url': article_url,
+                                'source': 'Hacker News'
+                            })
             
             return articles
             
         except Exception as e:
-            logger.error(f"Error scraping Reuters: {str(e)}")
+            logger.error(f"Error scraping Hacker News: {str(e)}")
             return []
     
     def scrape_generic_news(self, url: str, source_name: str) -> List[Dict]:
@@ -134,6 +179,8 @@ class NewsScraper:
             return self.scrape_bbc_news(url)
         elif 'reuters.com' in domain:
             return self.scrape_reuters(url)
+        elif 'ycombinator.com' in domain:
+            return self.scrape_hackernews(url)
         else:
             return self.scrape_generic_news(url, source_name)
     
@@ -168,7 +215,8 @@ def load_sources_from_json(filename: str = "sources.json") -> List[Dict]:
         logger.warning(f"Sources file {filename} not found, using default sources")
         return [
             {"name": "BBC News", "url": "https://www.bbc.com/news", "isActive": True},
-            {"name": "Reuters", "url": "https://www.reuters.com", "isActive": True}
+            {"name": "Reuters", "url": "https://www.reuters.com", "isActive": True},
+            {"name": "Hacker News", "url": "https://news.ycombinator.com", "isActive": True}
         ]
     except Exception as e:
         logger.error(f"Error loading sources: {str(e)}")
