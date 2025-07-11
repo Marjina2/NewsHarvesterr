@@ -114,10 +114,14 @@ class NewsScraper:
                     if len(title) > 20:
                         article_url = link_elem.text.strip() if link_elem else ""
 
+                        # Extract full article content
+                        article_details = self.extract_full_article(article_url) if article_url else {}
+
                         articles.append({
                             'title': title,
                             'url': article_url,
-                            'source': 'Reuters'
+                            'source': 'Reuters',
+                            **article_details
                         })
 
             return articles
