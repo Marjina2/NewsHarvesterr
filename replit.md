@@ -1,0 +1,103 @@
+# News Scraper Dashboard
+
+## Overview
+
+This is a full-stack news scraper application that automatically collects news articles from various sources and uses AI to rephrase headlines. The system consists of a React frontend with a Node.js/Express backend, PostgreSQL database, and Python-based scraping services.
+
+## User Preferences
+
+Preferred communication style: Simple, everyday language.
+
+## System Architecture
+
+### Frontend Architecture
+- **Framework**: React 18 with TypeScript
+- **Build Tool**: Vite for fast development and optimized builds
+- **UI Framework**: Tailwind CSS with shadcn/ui components
+- **State Management**: TanStack React Query for server state management
+- **Routing**: Wouter for lightweight client-side routing
+- **Styling**: Tailwind CSS with CSS variables for theming
+
+### Backend Architecture
+- **Runtime**: Node.js with Express.js framework
+- **Language**: TypeScript with ES modules
+- **Database ORM**: Drizzle ORM for type-safe database operations
+- **Database**: PostgreSQL (configured for Neon serverless)
+- **Validation**: Zod for runtime type validation
+- **Process Management**: Child processes for Python scraper integration
+
+### Scraping Services
+- **Language**: Python 3
+- **Web Scraping**: BeautifulSoup for HTML parsing
+- **HTTP Client**: Requests library for web requests
+- **Scheduling**: Python schedule library for periodic tasks
+- **AI Integration**: OpenRouter API with Mistral AI for headline rephrasing
+
+## Key Components
+
+### Database Schema
+The application uses three main tables:
+- `news_sources`: Stores news website URLs and metadata
+- `news_articles`: Stores scraped articles with original and rephrased titles
+- `scraper_config`: Stores scraper settings and status
+
+### API Endpoints
+- `/api/sources`: CRUD operations for news sources
+- `/api/news`: Retrieve news articles with pagination
+- `/api/config`: Scraper configuration management
+- `/api/scraper/start|stop`: Control scraper execution
+- `/api/stats`: Dashboard statistics
+
+### Frontend Components
+- **Dashboard**: Main application view with status indicators
+- **NewsDisplay**: Article listing with filtering and pagination
+- **NewsSourcesManager**: Add/remove news sources
+- **ScraperControls**: Start/stop scraper and adjust settings
+- **StatisticsPanel**: Real-time scraping statistics
+
+## Data Flow
+
+1. **User Configuration**: Users add news sources through the web interface
+2. **Scheduled Scraping**: Python services run on configurable intervals
+3. **Article Storage**: Scraped articles are stored in PostgreSQL
+4. **AI Processing**: Headlines are sent to OpenRouter/Mistral for rephrasing
+5. **Real-time Updates**: Frontend polls for new articles and status updates
+
+## External Dependencies
+
+### Required Services
+- **PostgreSQL Database**: For persistent data storage
+- **OpenRouter API**: For AI-powered headline rephrasing
+- **Python Runtime**: For scraping services
+
+### Key NPM Packages
+- `@tanstack/react-query`: Server state management
+- `drizzle-orm`: Database ORM
+- `@radix-ui/*`: UI component primitives
+- `wouter`: Lightweight routing
+- `zod`: Runtime validation
+
+### Python Dependencies
+- `requests`: HTTP client for web scraping
+- `beautifulsoup4`: HTML parsing
+- `schedule`: Task scheduling
+
+## Deployment Strategy
+
+The application is designed for Replit deployment with:
+- **Development**: `npm run dev` starts both frontend and backend
+- **Production**: `npm run build` creates optimized bundles
+- **Database**: Drizzle migrations with PostgreSQL
+- **Environment**: Requires `DATABASE_URL` and `OPENROUTER_API_KEY`
+
+### Build Process
+1. Frontend builds to `dist/public` using Vite
+2. Backend compiles to `dist/index.js` using esbuild
+3. Python services run independently via Node.js child processes
+4. Database migrations run via `npm run db:push`
+
+### Configuration
+- Drizzle config points to `shared/schema.ts`
+- Tailwind processes `client/src/index.css`
+- TypeScript paths configured for `@/*` and `@shared/*` aliases
+- Vite dev server proxies API calls to Express backend
