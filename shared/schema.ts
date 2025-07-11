@@ -19,6 +19,11 @@ export const newsArticles = pgTable("news_articles", {
   originalTitle: text("original_title").notNull(),
   rephrasedTitle: text("rephrased_title"),
   originalUrl: text("original_url"),
+  fullContent: text("full_content"),
+  excerpt: text("excerpt"),
+  publishedAt: timestamp("published_at"),
+  imageUrl: text("image_url"),
+  author: text("author"),
   status: text("status").notNull().default("pending"), // pending, processing, completed, failed
   scrapedAt: timestamp("scraped_at").defaultNow(),
   rephrasedAt: timestamp("rephrased_at"),
@@ -45,6 +50,11 @@ export const insertNewsArticleSchema = createInsertSchema(newsArticles).pick({
   sourceName: true,
   originalTitle: true,
   originalUrl: true,
+  fullContent: true,
+  excerpt: true,
+  publishedAt: true,
+  imageUrl: true,
+  author: true,
 });
 
 export const updateScraperConfigSchema = createInsertSchema(scraperConfig).pick({

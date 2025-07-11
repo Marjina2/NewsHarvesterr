@@ -4,49 +4,58 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Newspaper, RefreshCw, ExternalLink, MoreHorizontal, Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Newspaper, RefreshCw, ExternalLink, Loader2, Eye, Download, User, Calendar, Clock } from "lucide-react";
 import { NewsArticle } from "@shared/schema";
 
 export default function NewsDisplay() {
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  const [limit, setLimit] = useState(15);
+  const [showRephrasedOnly, setShowRephrasedOnly] = useState(false);
+  const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
 
   const { data: articles, isLoading, refetch, isFetching } = useQuery<NewsArticle[]>({
     queryKey: ["/api/news"],
-    refetchInterval: autoRefresh ? 60000 : false, // Auto-refresh every minute if enabled
+    refetchInterval: 5000,
   });
+
+  const filteredArticles = articles?.filter((article: NewsArticle) => 
+    !showRephrasedOnly || article.rephrasedTitle
+  ) || [];
 
   const handleRefresh = () => {
     refetch();
   };
 
-  const handleLoadMore = () => {
-    setLimit(prev => prev + 15);
-  };
-
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "completed":
-        return "bg-green-100 text-green-700";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
       case "processing":
-        return "bg-yellow-100 text-yellow-700";
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+      case "completed":
+        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
       case "failed":
-        return "bg-red-100 text-red-700";
+        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
       default:
-        return "bg-gray-100 text-gray-700";
+        return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200";
     }
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "Rephrased";
-      case "processing":
-        return "Processing";
-      case "failed":
-        return "Failed";
-      default:
-        return "Pending";
+  const handleDownloadJSON = async (articleId: number) => {
+    try {
+      const response = await fetch(`/api/articles/${articleId}/json`);
+      const data = await response.json();
+      
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `article-${articleId}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download article JSON:', error);
     }
   };
 
@@ -61,172 +70,215 @@ export default function NewsDisplay() {
     return `${Math.floor(diffInMinutes / 1440)} days ago`;
   };
 
-  const getSourceIconColor = (sourceName: string) => {
-    const colors = {
-      "BBC News": "bg-red-100 text-red-500",
-      "Reuters": "bg-orange-100 text-orange-500",
-      "CNN": "bg-blue-100 text-blue-500",
-    };
-    return colors[sourceName as keyof typeof colors] || "bg-gray-100 text-gray-500";
-  };
-
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="animate-pulse space-y-4">
-              <div className="h-4 bg-slate-200 rounded w-3/4" />
-              <div className="h-8 bg-slate-200 rounded" />
-              <div className="h-4 bg-slate-200 rounded w-1/2" />
-            </div>
-          </CardContent>
-        </Card>
-        {[...Array(3)].map((_, i) => (
-          <Card key={i}>
-            <CardContent className="p-6">
-              <div className="animate-pulse space-y-4">
-                <div className="h-4 bg-slate-200 rounded w-1/4" />
-                <div className="h-16 bg-slate-200 rounded" />
-                <div className="h-16 bg-slate-200 rounded" />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Loading news articles...</span>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* News Feed Header */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-slate-800">Latest News</h2>
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-slate-500">Auto-refresh:</span>
-                <Switch
-                  checked={autoRefresh}
-                  onCheckedChange={setAutoRefresh}
-                />
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleRefresh}
-                disabled={isFetching}
-                className="text-slate-500 hover:text-slate-700"
-              >
-                <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
-              </Button>
-            </div>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold flex items-center gap-2">
+          <Newspaper className="h-6 w-6" />
+          News Articles ({filteredArticles.length})
+        </h2>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label htmlFor="rephrased-only" className="text-sm font-medium">
+              Show rephrased only
+            </label>
+            <Switch
+              id="rephrased-only"
+              checked={showRephrasedOnly}
+              onCheckedChange={setShowRephrasedOnly}
+            />
           </div>
-          
-          <div className="flex items-center space-x-4 text-sm text-slate-500">
-            <span>Last updated: {new Date().toLocaleTimeString()}</span>
-            <span>Showing {Math.min(limit, articles?.length || 0)} of {articles?.length || 0} articles</span>
-          </div>
-        </CardContent>
-      </Card>
+          <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isFetching}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
+      </div>
 
-      {/* News Articles */}
-      <div className="space-y-4">
-        {articles?.slice(0, limit).map((article) => (
-          <Card key={article.id} className="hover:shadow-md transition-shadow duration-200">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center space-x-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getSourceIconColor(article.sourceName)}`}>
-                    <Newspaper className="w-4 h-4" />
+      {filteredArticles.length === 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <Newspaper className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+            <p className="text-gray-500">No news articles found</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredArticles.map((article: NewsArticle) => (
+            <Card key={article.id} className="hover:shadow-lg transition-shadow cursor-pointer group h-full flex flex-col">
+              <div className="relative">
+                {article.imageUrl && (
+                  <div className="aspect-video w-full overflow-hidden rounded-t-lg">
+                    <img 
+                      src={article.imageUrl} 
+                      alt={article.originalTitle}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-slate-800">{article.sourceName}</span>
-                    <span className="text-xs text-slate-500 ml-2">
-                      {formatTimeAgo(article.scrapedAt!.toString())}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
+                )}
+                <div className="absolute top-2 right-2">
                   <Badge className={getStatusColor(article.status)}>
-                    {getStatusText(article.status)}
+                    {article.status}
                   </Badge>
-                  <Button variant="ghost" size="sm" className="text-slate-400 hover:text-slate-600">
-                    <MoreHorizontal className="w-4 h-4" />
-                  </Button>
                 </div>
               </div>
               
-              <div className="space-y-3">
-                <div className="bg-slate-50 rounded-lg p-4">
-                  <h3 className="font-medium text-slate-800 mb-2">{article.originalTitle}</h3>
-                  <p className="text-sm text-slate-600">Original headline</p>
-                  {article.originalUrl && (
-                    <Button 
-                      variant="link" 
-                      size="sm" 
-                      className="p-0 h-auto text-xs text-blue-600 hover:text-blue-800 mt-1"
-                      onClick={() => window.open(article.originalUrl, '_blank')}
-                    >
-                      <ExternalLink className="w-3 h-3 mr-1" />
-                      View source
-                    </Button>
-                  )}
+              <CardHeader className="pb-2 flex-grow">
+                <CardTitle className="text-lg leading-tight line-clamp-2 mb-2">
+                  {article.rephrasedTitle || article.originalTitle}
+                </CardTitle>
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <span className="font-medium">{article.sourceName}</span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {formatTimeAgo(article.scrapedAt!.toString())}
+                  </span>
                 </div>
+              </CardHeader>
+              
+              <CardContent className="pt-0">
+                {article.excerpt && (
+                  <p className="text-sm text-gray-600 mb-3 line-clamp-3">
+                    {article.excerpt}
+                  </p>
+                )}
                 
-                <div className="bg-blue-50 rounded-lg p-4">
-                  {article.status === "processing" ? (
-                    <div className="flex items-center justify-center text-slate-500">
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      <span className="text-sm">Processing with AI...</span>
-                    </div>
-                  ) : article.status === "completed" && article.rephrasedTitle ? (
-                    <>
-                      <h3 className="font-medium text-slate-800 mb-2">{article.rephrasedTitle}</h3>
-                      <p className="text-sm text-blue-600">AI-rephrased version</p>
-                    </>
-                  ) : article.status === "failed" ? (
-                    <div className="text-center text-red-500">
-                      <p className="text-sm">Failed to rephrase this article</p>
-                    </div>
-                  ) : (
-                    <div className="text-center text-slate-500">
-                      <p className="text-sm">Waiting for AI processing...</p>
-                    </div>
-                  )}
+                {article.author && (
+                  <div className="flex items-center gap-1 text-sm text-gray-500 mb-3">
+                    <User className="h-3 w-3" />
+                    <span className="truncate">{article.author}</span>
+                  </div>
+                )}
+                
+                {article.rephrasedTitle && (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg mb-3">
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mb-1">AI Rephrased</p>
+                  </div>
+                )}
+                
+                <div className="flex items-center gap-2 mt-auto">
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedArticle(article)}
+                        className="flex items-center gap-1 flex-1"
+                      >
+                        <Eye className="h-3 w-3" />
+                        View Full Article
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle className="text-xl leading-tight pr-6">
+                          {article.rephrasedTitle || article.originalTitle}
+                        </DialogTitle>
+                      </DialogHeader>
+                      
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {formatTimeAgo(article.scrapedAt!.toString())}
+                          </span>
+                          {article.author && (
+                            <span className="flex items-center gap-1">
+                              <User className="h-3 w-3" />
+                              {article.author}
+                            </span>
+                          )}
+                          <span className="font-medium">{article.sourceName}</span>
+                          <Badge className={getStatusColor(article.status)}>
+                            {article.status}
+                          </Badge>
+                        </div>
+                        
+                        {article.imageUrl && (
+                          <div className="aspect-video w-full overflow-hidden rounded-lg">
+                            <img 
+                              src={article.imageUrl} 
+                              alt={article.originalTitle}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        )}
+                        
+                        {article.rephrasedTitle && (
+                          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                            <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">AI Rephrased Title:</p>
+                            <p className="text-blue-800 dark:text-blue-200 font-medium">{article.rephrasedTitle}</p>
+                            <p className="text-sm text-blue-700 dark:text-blue-300 mt-2">
+                              <span className="font-medium">Original:</span> {article.originalTitle}
+                            </p>
+                          </div>
+                        )}
+                        
+                        {article.fullContent && (
+                          <div className="prose max-w-none dark:prose-invert">
+                            <h3 className="text-lg font-semibold mb-3">Full Article Content</h3>
+                            <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
+                              {article.fullContent}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {!article.fullContent && article.excerpt && (
+                          <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                            <h3 className="text-lg font-semibold mb-2">Article Excerpt</h3>
+                            <p className="text-gray-700 dark:text-gray-300">{article.excerpt}</p>
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center gap-2 pt-4 border-t">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(article.originalUrl, '_blank')}
+                            className="flex items-center gap-1"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            Read Original Article
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDownloadJSON(article.id)}
+                            className="flex items-center gap-1"
+                          >
+                            <Download className="h-3 w-3" />
+                            Download JSON
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                  
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDownloadJSON(article.id)}
+                    className="flex items-center gap-1"
+                    title="Download JSON"
+                  >
+                    <Download className="h-3 w-3" />
+                  </Button>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-
-        {articles?.length === 0 && (
-          <Card>
-            <CardContent className="p-12 text-center">
-              <Newspaper className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-slate-800 mb-2">No news articles yet</h3>
-              <p className="text-slate-500 mb-4">Start the scraper to begin collecting news articles</p>
-              <Button onClick={handleRefresh} disabled={isFetching}>
-                <RefreshCw className={`w-4 h-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {articles && articles.length > limit && (
-          <div className="flex justify-center">
-            <Button
-              variant="outline"
-              onClick={handleLoadMore}
-              className="bg-white border-slate-300 text-slate-700 hover:bg-slate-50"
-            >
-              Load More Articles
-            </Button>
-          </div>
-        )}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

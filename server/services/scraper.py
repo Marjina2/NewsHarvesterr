@@ -5,6 +5,8 @@ import time
 from typing import List, Dict, Optional
 from urllib.parse import urljoin, urlparse
 import logging
+from newspaper import Article
+import re
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -15,6 +17,39 @@ class NewsScraper:
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         })
+        
+    def extract_full_article(self, url: str) -> Dict:
+        """Extract full article content using newspaper3k"""
+        try:
+            article = Article(url)
+            article.download()
+            article.parse()
+            
+            # Clean and format the content
+            content = article.text.strip()
+            excerpt = content[:300] + "..." if len(content) > 300 else content
+            
+            # Extract publish date
+            publish_date = None
+            if article.publish_date:
+                publish_date = article.publish_date.isoformat()
+            
+            return {
+                'fullContent': content,
+                'excerpt': excerpt,
+                'publishedAt': publish_date,
+                'imageUrl': article.top_image if article.top_image else None,
+                'author': ', '.join(article.authors) if article.authors else None
+            }
+        except Exception as e:
+            logger.warning(f"Failed to extract full article from {url}: {str(e)}")
+            return {
+                'fullContent': None,
+                'excerpt': None,
+                'publishedAt': None,
+                'imageUrl': None,
+                'author': None
+            }
         
     def scrape_bbc_news(self, url: str) -> List[Dict]:
         """Scrape BBC News headlines"""
@@ -39,10 +74,14 @@ class NewsScraper:
                     if len(title) > 20:
                         article_url = link_elem.text.strip() if link_elem else ""
                         
+                        # Extract full article content
+                        article_details = self.extract_full_article(article_url) if article_url else {}
+                        
                         articles.append({
                             'title': title,
                             'url': article_url,
-                            'source': 'BBC News'
+                            'source': 'BBC News',
+                            **article_details
                         })
             
             return articles

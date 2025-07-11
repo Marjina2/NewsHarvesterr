@@ -108,6 +108,11 @@ export class MemStorage implements IStorage {
       rephrasedTitle: null,
       scrapedAt: new Date(),
       rephrasedAt: null,
+      fullContent: article.fullContent || null,
+      excerpt: article.excerpt || null,
+      publishedAt: article.publishedAt ? new Date(article.publishedAt) : null,
+      imageUrl: article.imageUrl || null,
+      author: article.author || null,
     };
     this.articles.set(id, newArticle);
     return newArticle;

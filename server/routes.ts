@@ -88,6 +88,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/articles/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const articles = await storage.getNewsArticles(1, 0);
+      const article = articles.find(a => a.id === id);
+      
+      if (!article) {
+        return res.status(404).json({ error: "Article not found" });
+      }
+      
+      res.json(article);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch article details" });
+    }
+  });
+
+  app.get("/api/articles/:id/json", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const articles = await storage.getNewsArticles(1000, 0); // Get all articles
+      const article = articles.find(a => a.id === id);
+      
+      if (!article) {
+        return res.status(404).json({ error: "Article not found" });
+      }
+      
+      // Return complete article details as JSON
+      const articleDetails = {
+        id: article.id,
+        sourceName: article.sourceName,
+        originalTitle: article.originalTitle,
+        rephrasedTitle: article.rephrasedTitle,
+        originalUrl: article.originalUrl,
+        fullContent: article.fullContent,
+        excerpt: article.excerpt,
+        publishedAt: article.publishedAt,
+        imageUrl: article.imageUrl,
+        author: article.author,
+        status: article.status,
+        scrapedAt: article.scrapedAt,
+        rephrasedAt: article.rephrasedAt,
+      };
+      
+      res.json(articleDetails);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch article JSON" });
+    }
+  });
+
   // Scraper Configuration endpoints
   app.get("/api/config", async (req, res) => {
     try {

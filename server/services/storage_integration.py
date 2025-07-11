@@ -41,6 +41,11 @@ class StorageIntegration:
                     'sourceName': article['source'],
                     'originalTitle': article['title'],
                     'originalUrl': article.get('url', ''),
+                    'fullContent': article.get('fullContent'),
+                    'excerpt': article.get('excerpt'),
+                    'publishedAt': article.get('publishedAt'),
+                    'imageUrl': article.get('imageUrl'),
+                    'author': article.get('author'),
                 }
                 
                 response = requests.post(
