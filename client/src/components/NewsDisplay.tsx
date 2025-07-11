@@ -136,13 +136,9 @@ export default function NewsDisplay() {
                 <CardTitle className="text-lg leading-tight line-clamp-2 mb-2">
                   {article.rephrasedTitle || article.originalTitle}
                 </CardTitle>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <span className="font-medium">{article.sourceName}</span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {formatTimeAgo(article.scrapedAt!.toString())}
-                  </span>
+                <div className="flex items-center gap-1 text-sm text-gray-500">
+                  <Clock className="h-3 w-3" />
+                  {formatTimeAgo(article.scrapedAt!.toString())}
                 </div>
               </CardHeader>
               
