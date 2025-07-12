@@ -232,6 +232,166 @@ class NewsScraper:
             logger.error(f"Error scraping {source_name}: {str(e)}")
             return []
 
+    def scrape_cnn(self, url: str) -> List[Dict]:
+        """Scrape CNN headlines"""
+        try:
+            # Try RSS feed first
+            rss_url = "http://rss.cnn.com/rss/edition.rss"
+            response = self.session.get(rss_url, timeout=10)
+            response.raise_for_status()
+
+            soup = BeautifulSoup(response.content, 'xml')
+            articles = []
+
+            # Parse RSS feed - get up to 10 items
+            items = soup.find_all('item')[:10]
+
+            for item in items:
+                title_elem = item.find('title')
+                link_elem = item.find('link')
+
+                if title_elem and title_elem.text:
+                    title = title_elem.text.strip()
+                    if len(title) > 20:
+                        article_url = link_elem.text.strip() if link_elem else ""
+
+                        # Extract full article content
+                        article_details = self.extract_full_article(article_url) if article_url else {}
+
+                        articles.append({
+                            'title': title,
+                            'url': article_url,
+                            'source': 'CNN',
+                            **article_details
+                        })
+
+            return articles
+
+        except Exception as e:
+            logger.error(f"Error scraping CNN RSS: {str(e)}")
+            # Fallback to generic scraping
+            return self.scrape_generic_news(url, "CNN")
+
+    def scrape_guardian(self, url: str) -> List[Dict]:
+        """Scrape The Guardian headlines"""
+        try:
+            # Try RSS feed first
+            rss_url = "https://www.theguardian.com/world/rss"
+            response = self.session.get(rss_url, timeout=10)
+            response.raise_for_status()
+
+            soup = BeautifulSoup(response.content, 'xml')
+            articles = []
+
+            # Parse RSS feed - get up to 10 items
+            items = soup.find_all('item')[:10]
+
+            for item in items:
+                title_elem = item.find('title')
+                link_elem = item.find('link')
+
+                if title_elem and title_elem.text:
+                    title = title_elem.text.strip()
+                    if len(title) > 20:
+                        article_url = link_elem.text.strip() if link_elem else ""
+
+                        # Extract full article content
+                        article_details = self.extract_full_article(article_url) if article_url else {}
+
+                        articles.append({
+                            'title': title,
+                            'url': article_url,
+                            'source': 'The Guardian',
+                            **article_details
+                        })
+
+            return articles
+
+        except Exception as e:
+            logger.error(f"Error scraping The Guardian RSS: {str(e)}")
+            # Fallback to generic scraping
+            return self.scrape_generic_news(url, "The Guardian")
+
+    def scrape_npr(self, url: str) -> List[Dict]:
+        """Scrape NPR headlines"""
+        try:
+            # Try RSS feed first
+            rss_url = "https://feeds.npr.org/1001/rss.xml"
+            response = self.session.get(rss_url, timeout=10)
+            response.raise_for_status()
+
+            soup = BeautifulSoup(response.content, 'xml')
+            articles = []
+
+            # Parse RSS feed - get up to 10 items
+            items = soup.find_all('item')[:10]
+
+            for item in items:
+                title_elem = item.find('title')
+                link_elem = item.find('link')
+
+                if title_elem and title_elem.text:
+                    title = title_elem.text.strip()
+                    if len(title) > 20:
+                        article_url = link_elem.text.strip() if link_elem else ""
+
+                        # Extract full article content
+                        article_details = self.extract_full_article(article_url) if article_url else {}
+
+                        articles.append({
+                            'title': title,
+                            'url': article_url,
+                            'source': 'NPR News',
+                            **article_details
+                        })
+
+            return articles
+
+        except Exception as e:
+            logger.error(f"Error scraping NPR RSS: {str(e)}")
+            # Fallback to generic scraping
+            return self.scrape_generic_news(url, "NPR News")
+
+    def scrape_ap(self, url: str) -> List[Dict]:
+        """Scrape Associated Press headlines"""
+        try:
+            # Try RSS feed first
+            rss_url = "https://feeds.ap.org/ApTopHeadlines"
+            response = self.session.get(rss_url, timeout=10)
+            response.raise_for_status()
+
+            soup = BeautifulSoup(response.content, 'xml')
+            articles = []
+
+            # Parse RSS feed - get up to 10 items
+            items = soup.find_all('item')[:10]
+
+            for item in items:
+                title_elem = item.find('title')
+                link_elem = item.find('link')
+
+                if title_elem and title_elem.text:
+                    title = title_elem.text.strip()
+                    if len(title) > 20:
+                        article_url = link_elem.text.strip() if link_elem else ""
+
+                        # Extract full article content
+                        article_details = self.extract_full_article(article_url) if article_url else {}
+
+                        articles.append({
+                            'title': title,
+                            'url': article_url,
+                            'source': 'Associated Press',
+                            **article_details
+                        })
+
+            return articles
+
+        except Exception as e:
+            logger.error(f"Error scraping Associated Press RSS: {str(e)}")
+            # Fallback to generic scraping
+            return self.scrape_generic_news(url, "Associated Press")
+
     def scrape_india_today(self, url: str) -> List[Dict]:
         """Scrape India Today headlines"""
         try:
@@ -325,6 +485,14 @@ class NewsScraper:
             return self.scrape_bbc_news(url)
         elif 'reuters.com' in domain:
             return self.scrape_reuters(url)
+        elif 'cnn.com' in domain:
+            return self.scrape_cnn(url)
+        elif 'theguardian.com' in domain:
+            return self.scrape_guardian(url)
+        elif 'npr.org' in domain:
+            return self.scrape_npr(url)
+        elif 'apnews.com' in domain:
+            return self.scrape_ap(url)
         elif 'ycombinator.com' in domain:
             return self.scrape_hackernews(url)
         elif 'indiatoday.in' in domain:

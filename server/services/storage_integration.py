@@ -37,9 +37,15 @@ class StorageIntegration:
         """Save scraped articles to the Node.js storage"""
         try:
             for article in articles:
+                # Ensure the title meets minimum length requirement
+                title = article.get('title', '').strip()
+                if len(title) < 10:  # Skip articles with very short titles
+                    logger.warning(f"Skipping article with short title: {title}")
+                    continue
+                
                 article_data = {
                     'sourceName': article['source'],
-                    'originalTitle': article['title'],
+                    'originalTitle': title,
                     'originalUrl': article.get('url', ''),
                     'fullContent': article.get('fullContent'),
                     'excerpt': article.get('excerpt'),

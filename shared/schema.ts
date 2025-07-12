@@ -55,6 +55,10 @@ export const insertNewsArticleSchema = createInsertSchema(newsArticles).pick({
   publishedAt: true,
   imageUrl: true,
   author: true,
+}).extend({
+  originalTitle: z.string().min(1, "Title is required"),
+  sourceName: z.string().min(1, "Source name is required"),
+  originalUrl: z.string().url().optional().or(z.literal('')),
 });
 
 export const updateScraperConfigSchema = createInsertSchema(scraperConfig).pick({

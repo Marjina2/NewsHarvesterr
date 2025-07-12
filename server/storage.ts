@@ -57,12 +57,40 @@ export class MemStorage implements IStorage {
     });
     this.sources.set(2, {
       id: 2,
+      name: "CNN",
+      url: "https://www.cnn.com",
+      isActive: true,
+      createdAt: new Date(),
+    });
+    this.sources.set(3, {
+      id: 3,
+      name: "The Guardian",
+      url: "https://www.theguardian.com/international",
+      isActive: true,
+      createdAt: new Date(),
+    });
+    this.sources.set(4, {
+      id: 4,
+      name: "NPR News",
+      url: "https://www.npr.org/sections/news",
+      isActive: true,
+      createdAt: new Date(),
+    });
+    this.sources.set(5, {
+      id: 5,
+      name: "Associated Press",
+      url: "https://apnews.com",
+      isActive: true,
+      createdAt: new Date(),
+    });
+    this.sources.set(6, {
+      id: 6,
       name: "Reuters",
       url: "https://www.reuters.com",
       isActive: true,
       createdAt: new Date(),
     });
-    this.currentSourceId = 3;
+    this.currentSourceId = 7;
   }
 
   async getNewsSources(): Promise<NewsSource[]> {
