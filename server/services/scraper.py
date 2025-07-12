@@ -235,28 +235,25 @@ class NewsScraper:
     def scrape_india_today(self, url: str) -> List[Dict]:
         """Scrape India Today headlines"""
         try:
-            response = self.session.get(url, timeout=10)
+            # Try RSS feed first as it's more reliable
+            rss_url = "https://www.indiatoday.in/rss/1206578"
+            response = self.session.get(rss_url, timeout=10)
             response.raise_for_status()
 
-            soup = BeautifulSoup(response.content, 'html.parser')
+            soup = BeautifulSoup(response.content, 'xml')
             articles = []
 
-            # India Today specific selectors
-            headline_selectors = [
-                '.story-list .story-card h2 a',
-                '.lead-story h2 a',
-                '.top-news h2 a',
-                '.story h2 a',
-                '.story-list h3 a',
-                '.catagory-listing h2 a'
-            ]
+            # Parse RSS feed - get up to 10 items
+            items = soup.find_all('item')[:10]
 
-            for selector in headline_selectors:
-                headlines = soup.select(selector)
-                for headline in headlines[:10]:
-                    title = headline.get_text(strip=True)
-                    if title and len(title) > 20:
-                        article_url = urljoin(url, headline.get('href', ''))
+            for item in items:
+                title_elem = item.find('title')
+                link_elem = item.find('link')
+
+                if title_elem and title_elem.text:
+                    title = title_elem.text.strip()
+                    if len(title) > 20:
+                        article_url = link_elem.text.strip() if link_elem else ""
 
                         # Extract full article content
                         article_details = self.extract_full_article(article_url) if article_url else {}
@@ -268,18 +265,57 @@ class NewsScraper:
                             **article_details
                         })
 
-                        if len(articles) >= 10:
-                            break
-
-                if len(articles) >= 10:
-                    break
-
             return articles
 
         except Exception as e:
-            logger.error(f"Error scraping India Today: {str(e)}")
-            # Fallback to generic scraping
-            return self.scrape_generic_news(url, "India Today")
+            logger.error(f"Error scraping India Today RSS: {str(e)}")
+            # Fallback to website scraping
+            try:
+                response = self.session.get(url, timeout=10)
+                response.raise_for_status()
+
+                soup = BeautifulSoup(response.content, 'html.parser')
+                articles = []
+
+                # India Today specific selectors
+                headline_selectors = [
+                    '.story-list .story-card h2 a',
+                    '.lead-story h2 a',
+                    '.top-news h2 a',
+                    '.story h2 a',
+                    '.story-list h3 a',
+                    '.catagory-listing h2 a'
+                ]
+
+                for selector in headline_selectors:
+                    headlines = soup.select(selector)
+                    for headline in headlines[:10]:
+                        title = headline.get_text(strip=True)
+                        if title and len(title) > 20:
+                            article_url = urljoin(url, headline.get('href', ''))
+
+                            # Extract full article content
+                            article_details = self.extract_full_article(article_url) if article_url else {}
+
+                            articles.append({
+                                'title': title,
+                                'url': article_url,
+                                'source': 'India Today',
+                                **article_details
+                            })
+
+                            if len(articles) >= 10:
+                                break
+
+                    if len(articles) >= 10:
+                        break
+
+                return articles
+
+            except Exception as e2:
+                logger.error(f"Error scraping India Today website: {str(e2)}")
+                # Final fallback to generic scraping
+                return self.scrape_generic_news(url, "India Today")
 
     def scrape_source(self, url: str, source_name: str) -> List[Dict]:
         """Scrape a news source based on domain"""
