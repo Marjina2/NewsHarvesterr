@@ -21,7 +21,7 @@ class NewsScraper:
     def extract_full_article(self, url: str) -> Dict:
         """Extract full article content using newspaper3k"""
         try:
-            if not url or url.startswith('#') or url.startswith('javascript:'):
+            if not url or url.startswith('#') or url.startswith('javascript:') or not url.startswith(('http://', 'https://')):
                 return {
                     'fullContent': None,
                     'excerpt': None,
@@ -30,13 +30,17 @@ class NewsScraper:
                     'author': None
                 }
 
+            # Add retry logic and better error handling
             article = Article(url)
+            article.config.request_timeout = 15
+            article.config.browser_user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            
             article.download()
             article.parse()
 
             # Clean and format the content
             content = article.text.strip()
-            excerpt = content[:300] + "..." if len(content) > 300 else content
+            excerpt = content[:500] + "..." if len(content) > 500 else content
 
             # Extract publish date
             publish_date = None
@@ -46,11 +50,29 @@ class NewsScraper:
             # Get top image, ensure it's a valid URL
             image_url = None
             if article.top_image and article.top_image.startswith(('http://', 'https://')):
-                image_url = article.top_image
+                # Validate image URL
+                try:
+                    img_response = self.session.head(article.top_image, timeout=5)
+                    if img_response.status_code == 200:
+                        image_url = article.top_image
+                except:
+                    pass
+
+            # If no image from article, try to extract from meta tags
+            if not image_url and hasattr(article, 'html') and article.html:
+                try:
+                    soup = BeautifulSoup(article.html, 'html.parser')
+                    meta_image = soup.find('meta', property='og:image')
+                    if meta_image and meta_image.get('content'):
+                        candidate_url = meta_image.get('content')
+                        if candidate_url.startswith(('http://', 'https://')):
+                            image_url = candidate_url
+                except:
+                    pass
 
             return {
-                'fullContent': content if content else None,
-                'excerpt': excerpt if excerpt else None,
+                'fullContent': content if content and len(content) > 50 else None,
+                'excerpt': excerpt if excerpt and len(excerpt) > 20 else None,
                 'publishedAt': publish_date,
                 'imageUrl': image_url,
                 'author': ', '.join(article.authors) if article.authors else None
@@ -477,6 +499,186 @@ class NewsScraper:
                 # Final fallback to generic scraping
                 return self.scrape_generic_news(url, "India Today")
 
+    def scrape_techcrunch(self, url: str) -> List[Dict]:
+        """Scrape TechCrunch headlines"""
+        try:
+            rss_url = "https://techcrunch.com/feed/"
+            response = self.session.get(rss_url, timeout=10)
+            response.raise_for_status()
+
+            soup = BeautifulSoup(response.content, 'xml')
+            articles = []
+
+            items = soup.find_all('item')[:10]
+
+            for item in items:
+                title_elem = item.find('title')
+                link_elem = item.find('link')
+
+                if title_elem and title_elem.text:
+                    title = title_elem.text.strip()
+                    if len(title) > 20:
+                        article_url = link_elem.text.strip() if link_elem else ""
+
+                        article_details = self.extract_full_article(article_url) if article_url else {}
+
+                        articles.append({
+                            'title': title,
+                            'url': article_url,
+                            'source': 'TechCrunch',
+                            **article_details
+                        })
+
+            return articles
+
+        except Exception as e:
+            logger.error(f"Error scraping TechCrunch RSS: {str(e)}")
+            return self.scrape_generic_news(url, "TechCrunch")
+
+    def scrape_wired(self, url: str) -> List[Dict]:
+        """Scrape WIRED headlines"""
+        try:
+            rss_url = "https://www.wired.com/feed/rss"
+            response = self.session.get(rss_url, timeout=10)
+            response.raise_for_status()
+
+            soup = BeautifulSoup(response.content, 'xml')
+            articles = []
+
+            items = soup.find_all('item')[:10]
+
+            for item in items:
+                title_elem = item.find('title')
+                link_elem = item.find('link')
+
+                if title_elem and title_elem.text:
+                    title = title_elem.text.strip()
+                    if len(title) > 20:
+                        article_url = link_elem.text.strip() if link_elem else ""
+
+                        article_details = self.extract_full_article(article_url) if article_url else {}
+
+                        articles.append({
+                            'title': title,
+                            'url': article_url,
+                            'source': 'WIRED',
+                            **article_details
+                        })
+
+            return articles
+
+        except Exception as e:
+            logger.error(f"Error scraping WIRED RSS: {str(e)}")
+            return self.scrape_generic_news(url, "WIRED")
+
+    def scrape_engadget(self, url: str) -> List[Dict]:
+        """Scrape Engadget headlines"""
+        try:
+            rss_url = "https://www.engadget.com/rss.xml"
+            response = self.session.get(rss_url, timeout=10)
+            response.raise_for_status()
+
+            soup = BeautifulSoup(response.content, 'xml')
+            articles = []
+
+            items = soup.find_all('item')[:10]
+
+            for item in items:
+                title_elem = item.find('title')
+                link_elem = item.find('link')
+
+                if title_elem and title_elem.text:
+                    title = title_elem.text.strip()
+                    if len(title) > 20:
+                        article_url = link_elem.text.strip() if link_elem else ""
+
+                        article_details = self.extract_full_article(article_url) if article_url else {}
+
+                        articles.append({
+                            'title': title,
+                            'url': article_url,
+                            'source': 'Engadget',
+                            **article_details
+                        })
+
+            return articles
+
+        except Exception as e:
+            logger.error(f"Error scraping Engadget RSS: {str(e)}")
+            return self.scrape_generic_news(url, "Engadget")
+
+    def scrape_ars_technica(self, url: str) -> List[Dict]:
+        """Scrape Ars Technica headlines"""
+        try:
+            rss_url = "https://feeds.arstechnica.com/arstechnica/index"
+            response = self.session.get(rss_url, timeout=10)
+            response.raise_for_status()
+
+            soup = BeautifulSoup(response.content, 'xml')
+            articles = []
+
+            items = soup.find_all('item')[:10]
+
+            for item in items:
+                title_elem = item.find('title')
+                link_elem = item.find('link')
+
+                if title_elem and title_elem.text:
+                    title = title_elem.text.strip()
+                    if len(title) > 20:
+                        article_url = link_elem.text.strip() if link_elem else ""
+
+                        article_details = self.extract_full_article(article_url) if article_url else {}
+
+                        articles.append({
+                            'title': title,
+                            'url': article_url,
+                            'source': 'Ars Technica',
+                            **article_details
+                        })
+
+            return articles
+
+        except Exception as e:
+            logger.error(f"Error scraping Ars Technica RSS: {str(e)}")
+            return self.scrape_generic_news(url, "Ars Technica")
+
+    def scrape_verge(self, url: str) -> List[Dict]:
+        """Scrape The Verge headlines"""
+        try:
+            rss_url = "https://www.theverge.com/rss/index.xml"
+            response = self.session.get(rss_url, timeout=10)
+            response.raise_for_status()
+
+            soup = BeautifulSoup(response.content, 'xml')
+            articles = []
+
+            items = soup.find_all('item')[:10]
+
+            for item in items:
+                title_elem = item.find('title')
+                link_elem = item.find('link')
+
+                if title_elem and title_elem.text:
+                    title = title_elem.text.strip()
+                    if len(title) > 20:
+                        article_url = link_elem.text.strip() if link_elem else ""
+
+                        article_details = self.extract_full_article(article_url) if article_url else {}
+
+                        articles.append({
+                            'title': title,
+                            'url': article_url,
+                            'source': 'The Verge',
+                            **article_details
+                        })
+
+            return articles
+
+        except Exception as e:
+            logger.error(f"Error scraping The Verge RSS: {str(e)}")
+            return self.scrape_generic_news(url, "The Verge")
+
     def scrape_source(self, url: str, source_name: str) -> List[Dict]:
         """Scrape a news source based on domain"""
         domain = urlparse(url).netloc.lower()
@@ -497,6 +699,16 @@ class NewsScraper:
             return self.scrape_hackernews(url)
         elif 'indiatoday.in' in domain:
             return self.scrape_india_today(url)
+        elif 'techcrunch.com' in domain:
+            return self.scrape_techcrunch(url)
+        elif 'wired.com' in domain:
+            return self.scrape_wired(url)
+        elif 'engadget.com' in domain:
+            return self.scrape_engadget(url)
+        elif 'arstechnica.com' in domain:
+            return self.scrape_ars_technica(url)
+        elif 'theverge.com' in domain:
+            return self.scrape_verge(url)
         else:
             return self.scrape_generic_news(url, source_name)
 

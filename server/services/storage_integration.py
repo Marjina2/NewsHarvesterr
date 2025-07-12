@@ -36,6 +36,7 @@ class StorageIntegration:
     def save_scraped_articles(self, articles: List[Dict]) -> bool:
         """Save scraped articles to the Node.js storage"""
         try:
+            saved_count = 0
             for article in articles:
                 # Ensure the title meets minimum length requirement
                 title = article.get('title', '').strip()
@@ -43,14 +44,24 @@ class StorageIntegration:
                     logger.warning(f"Skipping article with short title: {title}")
                     continue
                 
+                # Clean and validate URL
+                url = article.get('url', '').strip()
+                if not url or not url.startswith(('http://', 'https://')):
+                    url = None
+                
+                # Clean image URL
+                image_url = article.get('imageUrl', '')
+                if image_url and not image_url.startswith(('http://', 'https://')):
+                    image_url = None
+                
                 article_data = {
                     'sourceName': article['source'],
                     'originalTitle': title,
-                    'originalUrl': article.get('url', ''),
+                    'originalUrl': url,
                     'fullContent': article.get('fullContent'),
                     'excerpt': article.get('excerpt'),
                     'publishedAt': article.get('publishedAt'),
-                    'imageUrl': article.get('imageUrl'),
+                    'imageUrl': image_url,
                     'author': article.get('author'),
                 }
                 
@@ -61,11 +72,15 @@ class StorageIntegration:
                 )
                 
                 if response.status_code != 200:
-                    logger.warning(f"Failed to save article: {article['title'][:50]}...")
+                    logger.warning(f"Failed to save article: {article['title'][:50]}... - Status: {response.status_code}")
+                    if response.status_code == 400:
+                        logger.warning(f"Validation error: {response.text}")
                     continue
                     
+                saved_count += 1
                 logger.info(f"Saved article: {article['title'][:50]}...")
             
+            logger.info(f"Successfully saved {saved_count} out of {len(articles)} articles")
             return True
             
         except Exception as e:
