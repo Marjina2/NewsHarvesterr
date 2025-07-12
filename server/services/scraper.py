@@ -21,6 +21,15 @@ class NewsScraper:
     def extract_full_article(self, url: str) -> Dict:
         """Extract full article content using newspaper3k"""
         try:
+            if not url or url.startswith('#') or url.startswith('javascript:'):
+                return {
+                    'fullContent': None,
+                    'excerpt': None,
+                    'publishedAt': None,
+                    'imageUrl': None,
+                    'author': None
+                }
+
             article = Article(url)
             article.download()
             article.parse()
@@ -34,11 +43,16 @@ class NewsScraper:
             if article.publish_date:
                 publish_date = article.publish_date.isoformat()
 
+            # Get top image, ensure it's a valid URL
+            image_url = None
+            if article.top_image and article.top_image.startswith(('http://', 'https://')):
+                image_url = article.top_image
+
             return {
-                'fullContent': content,
-                'excerpt': excerpt,
+                'fullContent': content if content else None,
+                'excerpt': excerpt if excerpt else None,
                 'publishedAt': publish_date,
-                'imageUrl': article.top_image if article.top_image else None,
+                'imageUrl': image_url,
                 'author': ', '.join(article.authors) if article.authors else None
             }
         except Exception as e:
@@ -196,10 +210,14 @@ class NewsScraper:
                         if link_element:
                             article_url = urljoin(url, link_element.get('href', ''))
 
+                        # Extract full article content
+                        article_details = self.extract_full_article(article_url) if article_url else {}
+
                         articles.append({
                             'title': title,
                             'url': article_url,
-                            'source': source_name
+                            'source': source_name,
+                            **article_details
                         })
 
                         if len(articles) >= 10:
@@ -214,6 +232,55 @@ class NewsScraper:
             logger.error(f"Error scraping {source_name}: {str(e)}")
             return []
 
+    def scrape_india_today(self, url: str) -> List[Dict]:
+        """Scrape India Today headlines"""
+        try:
+            response = self.session.get(url, timeout=10)
+            response.raise_for_status()
+
+            soup = BeautifulSoup(response.content, 'html.parser')
+            articles = []
+
+            # India Today specific selectors
+            headline_selectors = [
+                '.story-list .story-card h2 a',
+                '.lead-story h2 a',
+                '.top-news h2 a',
+                '.story h2 a',
+                '.story-list h3 a',
+                '.catagory-listing h2 a'
+            ]
+
+            for selector in headline_selectors:
+                headlines = soup.select(selector)
+                for headline in headlines[:10]:
+                    title = headline.get_text(strip=True)
+                    if title and len(title) > 20:
+                        article_url = urljoin(url, headline.get('href', ''))
+
+                        # Extract full article content
+                        article_details = self.extract_full_article(article_url) if article_url else {}
+
+                        articles.append({
+                            'title': title,
+                            'url': article_url,
+                            'source': 'India Today',
+                            **article_details
+                        })
+
+                        if len(articles) >= 10:
+                            break
+
+                if len(articles) >= 10:
+                    break
+
+            return articles
+
+        except Exception as e:
+            logger.error(f"Error scraping India Today: {str(e)}")
+            # Fallback to generic scraping
+            return self.scrape_generic_news(url, "India Today")
+
     def scrape_source(self, url: str, source_name: str) -> List[Dict]:
         """Scrape a news source based on domain"""
         domain = urlparse(url).netloc.lower()
@@ -224,6 +291,8 @@ class NewsScraper:
             return self.scrape_reuters(url)
         elif 'ycombinator.com' in domain:
             return self.scrape_hackernews(url)
+        elif 'indiatoday.in' in domain:
+            return self.scrape_india_today(url)
         else:
             return self.scrape_generic_news(url, source_name)
 
