@@ -49,33 +49,24 @@ export default function Dashboard() {
                 <p className="text-sm text-slate-500">AI-powered news aggregation and rephrasing</p>
               </div>
             </div>
-            {/* API URL Display - Hidden by default, click to copy */}
-            <div 
-              className="mt-4 p-3 bg-white/70 hover:bg-white/90 rounded-lg inline-block cursor-pointer transition-all duration-200 border border-transparent hover:border-gray-200"
-              onClick={async () => {
-                const apiUrl = `${window.location.origin}/api/articles/all`;
-                try {
-                  await navigator.clipboard.writeText(apiUrl);
-                  toast({
-                    title: "API URL Copied!",
-                    description: "The API endpoint URL has been copied to your clipboard.",
-                  });
-                } catch (err) {
-                  toast({
-                    title: "Copy Failed",
-                    description: "Failed to copy API URL to clipboard.",
-                    variant: "destructive",
-                  });
-                }
-              }}
-              title="Click to copy API endpoint URL"
-            >
-              <p className="text-sm text-gray-700 flex items-center gap-2">
-                <span className="font-semibold">📋 API Endpoint</span>
-                <span className="text-xs text-gray-500">(click to copy)</span>
+            {/* API URL Display */}
+            <div className="mt-4 p-3 bg-white/70 rounded-lg inline-block">
+              <p className="text-sm text-gray-700">
+                <span className="font-semibold">API Endpoint:</span>{" "}
+                <button
+                  onClick={() => {
+                    const url = `${window.location.origin}/api/articles/all`;
+                    navigator.clipboard.writeText(url);
+                    // You could add a toast notification here
+                  }}
+                  className="bg-blue-100 hover:bg-blue-200 px-2 py-1 rounded text-blue-600 font-mono text-xs cursor-pointer transition-colors"
+                  title="Click to copy"
+                >
+                  {window.location.origin}/api/articles/all
+                </button>
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                GET <code className="bg-gray-100 px-1 rounded font-mono">/api/articles/all</code>
+                Click the URL above to copy it to clipboard
               </p>
             </div>
             <div className="flex items-center space-x-4">
