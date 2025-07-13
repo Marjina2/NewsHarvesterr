@@ -7,6 +7,15 @@ import { spawn } from "child_process";
 import path from "path";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health check endpoint for Render
+  app.get('/api/health', (_req, res) => {
+    res.status(200).json({ 
+      status: 'healthy', 
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      version: '1.0.0'
+    });
+  });
   // News Sources endpoints
   app.get("/api/sources", async (req, res) => {
     try {
