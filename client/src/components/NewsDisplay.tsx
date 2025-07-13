@@ -17,7 +17,7 @@ export default function NewsDisplay() {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [articlesPerPage] = useState(10); // You can adjust this value
+  const [articlesPerPage] = useState(20); // Show 20 articles per page
 
   const { data: articles, isLoading, refetch, isFetching } =
     useQuery<NewsArticle[]>({

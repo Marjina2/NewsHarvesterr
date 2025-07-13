@@ -30,13 +30,22 @@ class NewsScraper:
                     'author': None
                 }
 
-            # Faster article extraction with shorter timeouts
+            # Enhanced article extraction with better configuration
             article = Article(url)
-            article.config.request_timeout = 8  # Reduced timeout
+            article.config.request_timeout = 15  # Increased timeout for better content
             article.config.browser_user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-
+            article.config.follow_meta_refresh = True
+            article.config.fetch_images = False  # Skip images for faster processing
+            
             article.download()
             article.parse()
+            
+            # Try to extract more content using NLP if needed
+            if len(article.text.strip()) < 500:  # If content seems short, try NLP
+                try:
+                    article.nlp()
+                except:
+                    pass
 
             # Clean and format the content
             content = article.text.strip()
