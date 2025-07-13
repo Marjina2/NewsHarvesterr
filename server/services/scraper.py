@@ -19,7 +19,7 @@ class NewsScraper:
         })
 
     def extract_full_article(self, url: str) -> Dict:
-        """Extract full article content using newspaper3k"""
+        """Extract full article content using newspaper3k with optimized performance"""
         try:
             if not url or url.startswith('#') or url.startswith('javascript:') or not url.startswith(('http://', 'https://')):
                 return {
@@ -30,9 +30,9 @@ class NewsScraper:
                     'author': None
                 }
 
-            # Add retry logic and better error handling
+            # Faster article extraction with shorter timeouts
             article = Article(url)
-            article.config.request_timeout = 15
+            article.config.request_timeout = 8  # Reduced timeout
             article.config.browser_user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             
             article.download()
@@ -40,25 +40,20 @@ class NewsScraper:
 
             # Clean and format the content
             content = article.text.strip()
-            excerpt = content[:500] + "..." if len(content) > 500 else content
+            excerpt = content[:300] + "..." if len(content) > 300 else content  # Shorter excerpt
 
             # Extract publish date
             publish_date = None
             if article.publish_date:
                 publish_date = article.publish_date.isoformat()
 
-            # Get top image, ensure it's a valid URL
+            # Get top image with faster validation
             image_url = None
             if article.top_image and article.top_image.startswith(('http://', 'https://')):
-                # Validate image URL
-                try:
-                    img_response = self.session.head(article.top_image, timeout=5)
-                    if img_response.status_code == 200:
-                        image_url = article.top_image
-                except:
-                    pass
-
-            # If no image from article, try to extract from meta tags
+                # Skip validation for speed - just use the URL
+                image_url = article.top_image
+            
+            # Quick fallback to meta tags for image
             if not image_url and hasattr(article, 'html') and article.html:
                 try:
                     soup = BeautifulSoup(article.html, 'html.parser')
