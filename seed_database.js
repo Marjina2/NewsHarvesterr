@@ -2,10 +2,8 @@ import { Pool } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import { newsSources } from './shared/schema.ts';
 
-// Support both Supabase and Neon databases
-const databaseUrl = process.env.SUPABASE_URL 
-  ? `${process.env.SUPABASE_URL}?sslmode=require` 
-  : process.env.DATABASE_URL;
+// Use DATABASE_URL for Supabase connection
+const databaseUrl = process.env.DATABASE_URL;
 
 const pool = new Pool({ connectionString: databaseUrl });
 const db = drizzle(pool);
