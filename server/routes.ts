@@ -16,8 +16,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       version: '1.0.0'
     });
   });
-  // News Sources endpoints
-  app.get("/api/sources", async (req, res) => {
+
+  // Rate limiting map for authentication attempts
+  const authAttempts = new Map<string, { count: number; lastAttempt: number }>();
+
+  // Authentication middleware with rate limiting
+  const requireAuth = (req: any, res: any, next: any) => {
+    const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
+    const authToken = req.headers.authorization?.replace('Bearer ', '') || req.body.token;
+    const masterToken = process.env.MASTER_TOKEN;
+    
+    if (!masterToken) {
+      return res.status(500).json({ error: 'Server configuration error' });
+    }
+
+    // Rate limiting check
+    const now = Date.now();
+    const attempts = authAttempts.get(clientIp) || { count: 0, lastAttempt: 0 };
+    
+    // Reset counter if last attempt was more than 15 minutes ago
+    if (now - attempts.lastAttempt > 15 * 60 * 1000) {
+      attempts.count = 0;
+    }
+
+    // Block if too many failed attempts
+    if (attempts.count >= 5) {
+      return res.status(429).json({ error: 'Too many authentication attempts. Please try again later.' });
+    }
+    
+    if (!authToken || authToken !== masterToken) {
+      // Log failed attempt
+      attempts.count++;
+      attempts.lastAttempt = now;
+      authAttempts.set(clientIp, attempts);
+      
+      return res.status(401).json({ error: 'Unauthorized access' });
+    }
+    
+    // Reset attempts on successful auth
+    authAttempts.delete(clientIp);
+    next();
+  };
+
+  // Public auth endpoint
+  app.post('/api/auth/verify', (req, res) => {
+    const { token } = req.body;
+    const masterToken = process.env.MASTER_TOKEN;
+    
+    if (!masterToken) {
+      return res.status(500).json({ error: 'Server configuration error' });
+    }
+    
+    if (token === masterToken) {
+      res.json({ success: true, message: 'Authentication successful' });
+    } else {
+      res.status(401).json({ error: 'Invalid token' });
+    }
+  });
+  // News Sources endpoints (protected)
+  app.get("/api/sources", requireAuth, async (req, res) => {
     try {
       const sources = await storage.getNewsSources();
       res.json(sources);
@@ -26,7 +83,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/sources", async (req, res) => {
+  app.post("/api/sources", requireAuth, async (req, res) => {
     try {
       const validatedData = insertNewsSourceSchema.parse(req.body);
       const source = await storage.createNewsSource(validatedData);
@@ -40,7 +97,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/sources/:id", async (req, res) => {
+  app.delete("/api/sources/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       await storage.deleteNewsSource(id);
@@ -50,8 +107,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // News Articles endpoints
-  app.get("/api/news", async (req, res) => {
+  // News Articles endpoints (protected)
+  app.get("/api/news", requireAuth, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
@@ -62,7 +119,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/articles", async (req, res) => {
+  app.post("/api/articles", requireAuth, async (req, res) => {
     try {
       const validatedData = insertNewsArticleSchema.parse(req.body);
       const article = await storage.createNewsArticle(validatedData);
@@ -76,7 +133,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/articles/pending", async (req, res) => {
+  app.get("/api/articles/pending", requireAuth, async (req, res) => {
     try {
       const articles = await storage.getNewsArticlesByStatus("pending");
       res.json(articles);
@@ -85,7 +142,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/articles/:id", async (req, res) => {
+  app.put("/api/articles/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const { status, rephrasedTitle } = req.body;
@@ -97,8 +154,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // All Articles JSON endpoint (must come before /:id route)
-  app.get("/api/articles/all", async (req, res) => {
+  // All Articles JSON endpoint (must come before /:id route) (protected)
+  app.get("/api/articles/all", requireAuth, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 1000; // Default to 1000 articles
       const articles = await storage.getNewsArticles(limit, 0);
@@ -203,7 +260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/articles/:id/json", async (req, res) => {
+  app.get("/api/articles/:id/json", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const articles = await storage.getNewsArticles(1000, 0); // Get all articles
@@ -236,8 +293,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Scraper Configuration endpoints
-  app.get("/api/config", async (req, res) => {
+  // Scraper Configuration endpoints (protected)
+  app.get("/api/config", requireAuth, async (req, res) => {
     try {
       const config = await storage.getScraperConfig();
       res.json(config);
@@ -246,7 +303,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/config", async (req, res) => {
+  app.post("/api/config", requireAuth, async (req, res) => {
     try {
       const validatedData = updateScraperConfigSchema.parse(req.body);
       const config = await storage.updateScraperConfig(validatedData);
@@ -260,8 +317,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Scraper Control endpoints
-  app.post("/api/scraper/start", async (req, res) => {
+  // Scraper Control endpoints (protected)
+  app.post("/api/scraper/start", requireAuth, async (req, res) => {
     try {
       await storage.updateScraperConfig({ isActive: true });
       
@@ -278,7 +335,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/scraper/stop", async (req, res) => {
+  app.post("/api/scraper/stop", requireAuth, async (req, res) => {
     try {
       await storage.updateScraperConfig({ isActive: false });
       
@@ -308,8 +365,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Statistics endpoint
-  app.get("/api/stats", async (req, res) => {
+  // Statistics endpoint (protected)
+  app.get("/api/stats", requireAuth, async (req, res) => {
     try {
       const stats = await storage.getNewsStats();
       res.json(stats);
@@ -319,7 +376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Scraper Status endpoint
-  app.get("/api/scraper/status", async (req, res) => {
+  app.get("/api/scraper/status", requireAuth, async (req, res) => {
     try {
       const config = await storage.getScraperConfig();
       const stats = await storage.getNewsStats();
