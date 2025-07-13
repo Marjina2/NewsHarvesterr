@@ -15,9 +15,21 @@ export default function NewsDisplay() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedRegion, setSelectedRegion] = useState<string>("all");
 
-  const { data: articles, isLoading, refetch, isFetching } = useQuery<NewsArticle[]>({
-    queryKey: ["/api/news"],
-    refetchInterval: 5000,
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [articlesPerPage] = useState(10); // You can adjust this value
+
+  const { data: articles, isLoading, refetch, isFetching } =
+    useQuery<NewsArticle[]>({
+      queryKey: ["/api/news", { limit: articlesPerPage, offset: (currentPage - 1) * articlesPerPage }],
+      staleTime: 30000,
+    });
+
+  // Get total articles count for pagination
+  const { data: allArticlesData } = useQuery({
+    queryKey: ["/api/articles/all", { limit: 1 }],
+    select: (data: any) => ({ total: data.total }),
+    staleTime: 60000,
   });
 
   const filteredArticles = articles?.filter((article: NewsArticle) => {
@@ -80,7 +92,7 @@ export default function NewsDisplay() {
     try {
       const response = await fetch(`/api/articles/${articleId}/json`);
       const data = await response.json();
-      
+
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -99,12 +111,20 @@ export default function NewsDisplay() {
     const date = new Date(dateString);
     const now = new Date();
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-    
+
     if (diffInMinutes < 1) return "Just now";
     if (diffInMinutes < 60) return `${diffInMinutes} minutes ago`;
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} hours ago`;
     return `${Math.floor(diffInMinutes / 1440)} days ago`;
   };
+
+  // Handle page changes
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+  };
+
+  const totalArticles = allArticlesData?.total || 0;
+  const totalPages = Math.ceil(totalArticles / articlesPerPage);
 
   if (isLoading) {
     return (
@@ -135,7 +155,7 @@ export default function NewsDisplay() {
             <Filter className="w-4 h-4 text-gray-500" />
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filters:</span>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <Globe className="w-4 h-4 text-gray-500" />
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
@@ -182,6 +202,62 @@ export default function NewsDisplay() {
         </div>
       </div>
 
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mb-6">
+          <div className="text-sm text-gray-500">
+            Page {currentPage} of {totalPages} ({totalArticles} total articles)
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+
+            {/* Page numbers */}
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handlePageChange(pageNum)}
+                    className="w-8 h-8 p-0"
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
+
       {filteredArticles.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center">
@@ -209,7 +285,7 @@ export default function NewsDisplay() {
                   </Badge>
                 </div>
               </div>
-              
+
               <CardHeader className="pb-2 flex-grow">
                 <CardTitle className="text-lg leading-tight line-clamp-2 mb-2">
                   {article.rephrasedTitle || article.originalTitle}
@@ -228,27 +304,27 @@ export default function NewsDisplay() {
                   </Badge>
                 </div>
               </CardHeader>
-              
+
               <CardContent className="pt-0">
                 {article.excerpt && (
                   <p className="text-sm text-gray-600 mb-3 line-clamp-3">
                     {article.excerpt}
                   </p>
                 )}
-                
+
                 {article.author && (
                   <div className="flex items-center gap-1 text-sm text-gray-500 mb-3">
                     <User className="h-3 w-3" />
                     <span className="truncate">{article.author}</span>
                   </div>
                 )}
-                
+
                 {article.rephrasedTitle && (
                   <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg mb-3">
                     <p className="text-xs text-blue-600 dark:text-blue-400 mb-1">AI Rephrased</p>
                   </div>
                 )}
-                
+
                 <div className="flex items-center gap-2 mt-auto">
                   <Dialog>
                     <DialogTrigger asChild>
@@ -268,7 +344,7 @@ export default function NewsDisplay() {
                           {article.rephrasedTitle || article.originalTitle}
                         </DialogTitle>
                       </DialogHeader>
-                      
+
                       <div className="space-y-4">
                         <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
                           <span className="flex items-center gap-1">
@@ -286,7 +362,7 @@ export default function NewsDisplay() {
                             {article.status}
                           </Badge>
                         </div>
-                        
+
                         {article.imageUrl && (
                           <div className="aspect-video w-full overflow-hidden rounded-lg">
                             <img 
@@ -296,7 +372,7 @@ export default function NewsDisplay() {
                             />
                           </div>
                         )}
-                        
+
                         {article.rephrasedTitle && (
                           <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
                             <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">AI Rephrased Title:</p>
@@ -306,7 +382,7 @@ export default function NewsDisplay() {
                             </p>
                           </div>
                         )}
-                        
+
                         {article.fullContent && (
                           <div className="prose max-w-none dark:prose-invert">
                             <h3 className="text-lg font-semibold mb-3">Full Article Content</h3>
@@ -315,14 +391,14 @@ export default function NewsDisplay() {
                             </div>
                           </div>
                         )}
-                        
+
                         {!article.fullContent && article.excerpt && (
                           <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
                             <h3 className="text-lg font-semibold mb-2">Article Excerpt</h3>
                             <p className="text-gray-700 dark:text-gray-300">{article.excerpt}</p>
                           </div>
                         )}
-                        
+
                         <div className="flex items-center gap-2 pt-4 border-t">
                           <Button
                             variant="outline"
@@ -346,7 +422,7 @@ export default function NewsDisplay() {
                       </div>
                     </DialogContent>
                   </Dialog>
-                  
+
                   <Button
                     variant="ghost"
                     size="sm"
@@ -362,6 +438,35 @@ export default function NewsDisplay() {
           ))}
         </div>
       )}
+
+      {/* Bottom Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center mt-8">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              ← Previous
+            </Button>
+            <span className="px-4 py-2 text-sm text-gray-600">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              Next →
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Article Details Modal */}
     </div>
   );
 }

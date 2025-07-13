@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, serial, timestamp, boolean, index, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -29,6 +29,11 @@ export const newsArticles = pgTable("news_articles", {
   status: text("status").notNull().default("pending"), // pending, processing, completed, failed
   scrapedAt: timestamp("scraped_at").defaultNow(),
   rephrasedAt: timestamp("rephrased_at"),
+}, (table) => {
+  return {
+    scrapedAtIdx: index("scraped_at_idx").on(table.scrapedAt),
+    statusIdx: index("status_idx").on(table.status),
+  };
 });
 
 // Scraper Configuration
