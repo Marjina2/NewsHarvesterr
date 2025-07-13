@@ -3,7 +3,7 @@ import { NewsArticle } from "@shared/schema";
 
 export function useNews(limit = 50, offset = 0) {
   return useQuery<NewsArticle[]>({
-    queryKey: ["/api/news", { limit, offset }],
+    queryKey: ["/api/news", limit, offset],
     queryFn: async () => {
       const response = await fetch(`/api/news?limit=${limit}&offset=${offset}`);
       if (!response.ok) {
