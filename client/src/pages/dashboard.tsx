@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Newspaper, Play, Square, RefreshCw } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import ScraperControls from "@/components/ScraperControls";
 import NewsSourcesManager from "@/components/NewsSourcesManager";
 import NewsDisplay from "@/components/NewsDisplay";
@@ -10,6 +11,7 @@ import StatisticsPanel from "@/components/StatisticsPanel";
 import { ScraperStatus } from "@shared/schema";
 
 export default function Dashboard() {
+  const { toast } = useToast();
   const [lastUpdate, setLastUpdate] = useState<string>("Never");
 
   const { data: scraperStatus, isLoading } = useQuery<ScraperStatus>({
@@ -47,16 +49,33 @@ export default function Dashboard() {
                 <p className="text-sm text-slate-500">AI-powered news aggregation and rephrasing</p>
               </div>
             </div>
-            {/* API URL Display */}
-            <div className="mt-4 p-3 bg-white/70 rounded-lg inline-block">
-              <p className="text-sm text-gray-700">
-                <span className="font-semibold">API Base URL:</span>{" "}
-                <code className="bg-gray-100 px-2 py-1 rounded text-blue-600 font-mono">
-                  {window.location.origin}/api
-                </code>
+            {/* API URL Display - Hidden by default, click to copy */}
+            <div 
+              className="mt-4 p-3 bg-white/70 hover:bg-white/90 rounded-lg inline-block cursor-pointer transition-all duration-200 border border-transparent hover:border-gray-200"
+              onClick={async () => {
+                const apiUrl = `${window.location.origin}/api/articles/all`;
+                try {
+                  await navigator.clipboard.writeText(apiUrl);
+                  toast({
+                    title: "API URL Copied!",
+                    description: "The API endpoint URL has been copied to your clipboard.",
+                  });
+                } catch (err) {
+                  toast({
+                    title: "Copy Failed",
+                    description: "Failed to copy API URL to clipboard.",
+                    variant: "destructive",
+                  });
+                }
+              }}
+              title="Click to copy API endpoint URL"
+            >
+              <p className="text-sm text-gray-700 flex items-center gap-2">
+                <span className="font-semibold">📋 API Endpoint</span>
+                <span className="text-xs text-gray-500">(click to copy)</span>
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                All Articles JSON: <code className="bg-gray-100 px-1 rounded">/api/articles/all</code>
+                GET <code className="bg-gray-100 px-1 rounded font-mono">/api/articles/all</code>
               </p>
             </div>
             <div className="flex items-center space-x-4">
