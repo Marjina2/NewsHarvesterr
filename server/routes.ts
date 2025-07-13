@@ -94,28 +94,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit as string) || 1000; // Default to 1000 articles
       const articles = await storage.getNewsArticles(limit, 0);
       
+      // Calculate trending status based on recency and category distribution
+      const now = new Date();
+      const categoryCount: Record<string, number> = {};
+      const regionCount: Record<string, number> = {};
+      
+      // Count articles by category and region for trending calculation
+      articles.forEach(article => {
+        const category = article.category || 'general';
+        const region = article.region || 'international';
+        categoryCount[category] = (categoryCount[category] || 0) + 1;
+        regionCount[region] = (regionCount[region] || 0) + 1;
+      });
+      
       // Return complete article details as JSON array
-      const allArticles = articles.map(article => ({
-        id: article.id,
-        sourceName: article.sourceName,
-        originalTitle: article.originalTitle,
-        rephrasedTitle: article.rephrasedTitle,
-        originalUrl: article.originalUrl,
-        fullContent: article.fullContent,
-        excerpt: article.excerpt,
-        publishedAt: article.publishedAt,
-        imageUrl: article.imageUrl,
-        author: article.author,
-        category: article.category,
-        region: article.region,
-        status: article.status,
-        scrapedAt: article.scrapedAt,
-        rephrasedAt: article.rephrasedAt,
+      const allArticles = articles.map((article, index) => {
+        const scrapedDate = new Date(article.scrapedAt || now);
+        const hoursOld = (now.getTime() - scrapedDate.getTime()) / (1000 * 60 * 60);
+        const category = article.category || 'general';
+        const region = article.region || 'international';
+        
+        // Simple trending algorithm: recent articles + category popularity + position
+        const recencyScore = Math.max(0, 24 - hoursOld) / 24; // Higher score for newer articles
+        const categoryPopularity = (categoryCount[category] || 1) / articles.length;
+        const positionScore = Math.max(0, (50 - index) / 50); // Higher score for articles closer to top
+        
+        const trendingScore = (recencyScore * 0.4) + (categoryPopularity * 0.3) + (positionScore * 0.3);
+        const isTrending = trendingScore > 0.5 && hoursOld < 12; // Trending if score > 0.5 and less than 12 hours old
+        
+        return {
+          id: article.id,
+          sourceName: article.sourceName,
+          originalTitle: article.originalTitle,
+          rephrasedTitle: article.rephrasedTitle,
+          originalUrl: article.originalUrl,
+          fullContent: article.fullContent,
+          excerpt: article.excerpt,
+          publishedAt: article.publishedAt,
+          imageUrl: article.imageUrl,
+          author: article.author,
+          category: category,
+          region: region,
+          isTrending: isTrending,
+          trendingScore: Math.round(trendingScore * 100) / 100, // Round to 2 decimal places
+          status: article.status,
+          scrapedAt: article.scrapedAt,
+          rephrasedAt: article.rephrasedAt,
+        };
+      });
+      
+      // Sort by trending score for better organization
+      const sortedArticles = allArticles.sort((a, b) => {
+        if (a.isTrending && !b.isTrending) return -1;
+        if (!a.isTrending && b.isTrending) return 1;
+        return b.trendingScore - a.trendingScore;
+      });
+      
+      // Generate summary statistics
+      const trendingCount = sortedArticles.filter(a => a.isTrending).length;
+      const categoriesBreakdown = Object.entries(categoryCount).map(([cat, count]) => ({
+        category: cat,
+        count,
+        percentage: Math.round((count / articles.length) * 100)
+      }));
+      const regionsBreakdown = Object.entries(regionCount).map(([reg, count]) => ({
+        region: reg,
+        count,
+        percentage: Math.round((count / articles.length) * 100)
       }));
       
       res.json({
-        total: allArticles.length,
-        articles: allArticles
+        total: sortedArticles.length,
+        trending: trendingCount,
+        summary: {
+          categories: categoriesBreakdown,
+          regions: regionsBreakdown,
+          trendingArticles: trendingCount
+        },
+        articles: sortedArticles
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch all articles" });
