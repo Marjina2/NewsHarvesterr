@@ -34,7 +34,7 @@ class NewsScraper:
             article = Article(url)
             article.config.request_timeout = 8  # Reduced timeout
             article.config.browser_user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            
+
             article.download()
             article.parse()
 
@@ -52,7 +52,7 @@ class NewsScraper:
             if article.top_image and article.top_image.startswith(('http://', 'https://')):
                 # Skip validation for speed - just use the URL
                 image_url = article.top_image
-            
+
             # Quick fallback to meta tags for image
             if not image_url and hasattr(article, 'html') and article.html:
                 try:
@@ -93,8 +93,8 @@ class NewsScraper:
             soup = BeautifulSoup(response.content, 'xml')
             articles = []
 
-            # Parse RSS feed - get up to 10 items
-            items = soup.find_all('item')[:10]
+            # Parse RSS feed - get up to 25 items
+            items = soup.find_all('item')[:25]
 
             for item in items:
                 title_elem = item.find('title')
@@ -133,8 +133,8 @@ class NewsScraper:
             soup = BeautifulSoup(response.content, 'xml')
             articles = []
 
-            # Parse RSS feed - get up to 10 items
-            items = soup.find_all('item')[:10]
+            # Parse RSS feed - get up to 25 items
+            items = soup.find_all('item')[:25]
 
             for item in items:
                 title_elem = item.find('title')
@@ -260,8 +260,8 @@ class NewsScraper:
             soup = BeautifulSoup(response.content, 'xml')
             articles = []
 
-            # Parse RSS feed - get up to 10 items
-            items = soup.find_all('item')[:10]
+            # Parse RSS feed - get up to 25 items
+            items = soup.find_all('item')[:25]
 
             for item in items:
                 title_elem = item.find('title')
@@ -300,8 +300,8 @@ class NewsScraper:
             soup = BeautifulSoup(response.content, 'xml')
             articles = []
 
-            # Parse RSS feed - get up to 10 items
-            items = soup.find_all('item')[:10]
+            # Parse RSS feed - get up to 25 items
+            items = soup.find_all('item')[:25]
 
             for item in items:
                 title_elem = item.find('title')
@@ -340,8 +340,8 @@ class NewsScraper:
             soup = BeautifulSoup(response.content, 'xml')
             articles = []
 
-            # Parse RSS feed - get up to 10 items
-            items = soup.find_all('item')[:10]
+            # Parse RSS feed - get up to 25 items
+            items = soup.find_all('item')[:25]
 
             for item in items:
                 title_elem = item.find('title')
@@ -380,8 +380,8 @@ class NewsScraper:
             soup = BeautifulSoup(response.content, 'xml')
             articles = []
 
-            # Parse RSS feed - get up to 10 items
-            items = soup.find_all('item')[:10]
+            # Parse RSS feed - get up to 25 items
+            items = soup.find_all('item')[:25]
 
             for item in items:
                 title_elem = item.find('title')
@@ -420,8 +420,8 @@ class NewsScraper:
             soup = BeautifulSoup(response.content, 'xml')
             articles = []
 
-            # Parse RSS feed - get up to 10 items
-            items = soup.find_all('item')[:10]
+            # Parse RSS feed - get up to 25 items
+            items = soup.find_all('item')[:25]
 
             for item in items:
                 title_elem = item.find('title')
@@ -493,7 +493,7 @@ class NewsScraper:
                 logger.error(f"Error scraping India Today website: {str(e2)}")
                 # Final fallback to generic scraping
                 return self.scrape_generic_news(url, "India Today")
-    
+
     def scrape_ndtv(self, url: str) -> List[Dict]:
         """Scrape NDTV headlines"""
         try:
@@ -501,36 +501,36 @@ class NewsScraper:
             rss_url = "https://feeds.feedburner.com/ndtvnews-top-stories"
             response = self.session.get(rss_url, timeout=10)
             response.raise_for_status()
-            
+
             soup = BeautifulSoup(response.content, 'xml')
             articles = []
-            
+
             items = soup.find_all('item')[:15]
-            
+
             for item in items:
                 title_elem = item.find('title')
                 link_elem = item.find('link')
-                
+
                 if title_elem and title_elem.text:
                     title = title_elem.text.strip()
                     if len(title) > 20:
                         article_url = link_elem.text.strip() if link_elem else ""
-                        
+
                         article_details = self.extract_full_article(article_url) if article_url else {}
-                        
+
                         articles.append({
                             'title': title,
                             'url': article_url,
                             'source': 'NDTV',
                             **article_details
                         })
-            
+
             return articles
-            
+
         except Exception as e:
             logger.error(f"Error scraping NDTV: {str(e)}")
             return self.scrape_generic_news(url, "NDTV")
-    
+
     def scrape_times_of_india(self, url: str) -> List[Dict]:
         """Scrape Times of India headlines"""
         try:
@@ -538,36 +538,36 @@ class NewsScraper:
             rss_url = "https://timesofindia.indiatimes.com/rssfeedstopstories.cms"
             response = self.session.get(rss_url, timeout=10)
             response.raise_for_status()
-            
+
             soup = BeautifulSoup(response.content, 'xml')
             articles = []
-            
+
             items = soup.find_all('item')[:15]
-            
+
             for item in items:
                 title_elem = item.find('title')
                 link_elem = item.find('link')
-                
+
                 if title_elem and title_elem.text:
                     title = title_elem.text.strip()
                     if len(title) > 20:
                         article_url = link_elem.text.strip() if link_elem else ""
-                        
+
                         article_details = self.extract_full_article(article_url) if article_url else {}
-                        
+
                         articles.append({
                             'title': title,
                             'url': article_url,
                             'source': 'Times of India',
                             **article_details
                         })
-            
+
             return articles
-            
+
         except Exception as e:
             logger.error(f"Error scraping Times of India: {str(e)}")
             return self.scrape_generic_news(url, "Times of India")
-    
+
     def scrape_hindu(self, url: str) -> List[Dict]:
         """Scrape The Hindu headlines"""
         try:
@@ -575,36 +575,36 @@ class NewsScraper:
             rss_url = "https://www.thehindu.com/feeder/default.rss"
             response = self.session.get(rss_url, timeout=10)
             response.raise_for_status()
-            
+
             soup = BeautifulSoup(response.content, 'xml')
             articles = []
-            
+
             items = soup.find_all('item')[:15]
-            
+
             for item in items:
                 title_elem = item.find('title')
                 link_elem = item.find('link')
-                
+
                 if title_elem and title_elem.text:
                     title = title_elem.text.strip()
                     if len(title) > 20:
                         article_url = link_elem.text.strip() if link_elem else ""
-                        
+
                         article_details = self.extract_full_article(article_url) if article_url else {}
-                        
+
                         articles.append({
                             'title': title,
                             'url': article_url,
                             'source': 'Hindu',
                             **article_details
                         })
-            
+
             return articles
-            
+
         except Exception as e:
             logger.error(f"Error scraping The Hindu: {str(e)}")
             return self.scrape_generic_news(url, "Hindu")
-    
+
     def scrape_economic_times(self, url: str) -> List[Dict]:
         """Scrape Economic Times headlines"""
         try:
@@ -612,32 +612,32 @@ class NewsScraper:
             rss_url = "https://economictimes.indiatimes.com/rssfeedstopstories.cms"
             response = self.session.get(rss_url, timeout=10)
             response.raise_for_status()
-            
+
             soup = BeautifulSoup(response.content, 'xml')
             articles = []
-            
+
             items = soup.find_all('item')[:15]
-            
+
             for item in items:
                 title_elem = item.find('title')
                 link_elem = item.find('link')
-                
+
                 if title_elem and title_elem.text:
                     title = title_elem.text.strip()
                     if len(title) > 20:
                         article_url = link_elem.text.strip() if link_elem else ""
-                        
+
                         article_details = self.extract_full_article(article_url) if article_url else {}
-                        
+
                         articles.append({
                             'title': title,
                             'url': article_url,
                             'source': 'Economic Times',
                             **article_details
                         })
-            
+
             return articles
-            
+
         except Exception as e:
             logger.error(f"Error scraping Economic Times: {str(e)}")
             return self.scrape_generic_news(url, "Economic Times")
@@ -868,25 +868,25 @@ class NewsScraper:
         title_lower = title.lower()
         content_lower = content.lower() if content else ""
         combined = f"{title_lower} {content_lower}"
-        
+
         # Technology keywords
         tech_keywords = ['ai', 'artificial intelligence', 'tech', 'technology', 'software', 'app', 'digital', 'cyber', 'robot', 'automation', 'startup', 'computer', 'internet', 'smartphone', 'gadget']
-        
+
         # Business keywords
         business_keywords = ['business', 'economy', 'finance', 'market', 'stock', 'investment', 'company', 'corporate', 'trade', 'banking', 'money', 'funding', 'revenue']
-        
+
         # Politics keywords
         politics_keywords = ['politics', 'government', 'minister', 'parliament', 'election', 'policy', 'law', 'court', 'supreme', 'democracy', 'vote']
-        
+
         # Sports keywords
         sports_keywords = ['sports', 'cricket', 'football', 'olympics', 'match', 'team', 'player', 'game', 'championship', 'tournament']
-        
+
         # Science keywords
         science_keywords = ['science', 'research', 'study', 'discovery', 'scientist', 'medicine', 'health', 'space', 'nasa', 'quantum', 'climate']
-        
+
         # Entertainment keywords
         entertainment_keywords = ['movie', 'film', 'actor', 'actress', 'bollywood', 'hollywood', 'music', 'celebrity', 'entertainment']
-        
+
         if any(keyword in combined for keyword in tech_keywords):
             return 'technology'
         elif any(keyword in combined for keyword in business_keywords):
@@ -901,14 +901,14 @@ class NewsScraper:
             return 'entertainment'
         else:
             return 'general'
-    
+
     def detect_indian_content(self, title: str, content: str = "", source: str = "") -> str:
         """Detect if content is India-related"""
         title_lower = title.lower()
         content_lower = content.lower() if content else ""
         source_lower = source.lower()
         combined = f"{title_lower} {content_lower} {source_lower}"
-        
+
         indian_keywords = [
             'india', 'indian', 'delhi', 'mumbai', 'bengaluru', 'bangalore', 'kolkata', 'chennai', 'hyderabad', 'pune',
             'bollywood', 'rupee', 'modi', 'bjp', 'congress', 'lok sabha', 'rajya sabha', 'parliament', 'supreme court',
@@ -916,7 +916,7 @@ class NewsScraper:
             'kerala', 'tamil nadu', 'karnataka', 'andhra pradesh', 'telangana', 'odisha', 'jharkhand', 'chhattisgarh',
             'isro', 'iit', 'iisc', 'tata', 'reliance', 'infosys', 'wipro', 'ola', 'flipkart', 'paytm', 'zomato'
         ]
-        
+
         if any(keyword in combined for keyword in indian_keywords) or 'india' in source_lower:
             return 'indian'
         else:
@@ -925,27 +925,27 @@ class NewsScraper:
     def scrape_source_with_categories(self, url: str, source_name: str, target_articles: int = 20) -> List[Dict]:
         """Scrape a source and categorize articles into Indian and International"""
         articles = self.scrape_source(url, source_name)
-        
+
         indian_articles = []
         international_articles = []
-        
+
         for article in articles:
             # Add category and region classification
             category = self.categorize_article(article['title'], article.get('fullContent', ''))
             region = self.detect_indian_content(article['title'], article.get('fullContent', ''), source_name)
-            
+
             article['category'] = category
             article['region'] = region
-            
+
             if region == 'indian' and len(indian_articles) < 10:
                 indian_articles.append(article)
             elif region == 'international' and len(international_articles) < 10:
                 international_articles.append(article)
-            
+
             # Stop if we have enough articles
             if len(indian_articles) >= 10 and len(international_articles) >= 10:
                 break
-        
+
         # Combine and return up to target_articles
         result = indian_articles + international_articles
         return result[:target_articles]
