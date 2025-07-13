@@ -24,6 +24,8 @@ export const newsArticles = pgTable("news_articles", {
   publishedAt: timestamp("published_at"),
   imageUrl: text("image_url"),
   author: text("author"),
+  category: text("category").default("general"), // general, technology, politics, sports, business, entertainment, health, science, indian
+  region: text("region").default("international"), // indian, international
   status: text("status").notNull().default("pending"), // pending, processing, completed, failed
   scrapedAt: timestamp("scraped_at").defaultNow(),
   rephrasedAt: timestamp("rephrased_at"),
@@ -55,11 +57,15 @@ export const insertNewsArticleSchema = createInsertSchema(newsArticles).pick({
   publishedAt: true,
   imageUrl: true,
   author: true,
+  category: true,
+  region: true,
 }).extend({
   originalTitle: z.string().min(1, "Title is required"),
   sourceName: z.string().min(1, "Source name is required"),
   originalUrl: z.string().optional().nullable(),
   imageUrl: z.string().optional().nullable(),
+  category: z.string().optional(),
+  region: z.string().optional(),
 });
 
 export const updateScraperConfigSchema = createInsertSchema(scraperConfig).pick({

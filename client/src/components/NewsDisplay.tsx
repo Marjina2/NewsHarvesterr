@@ -4,22 +4,58 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Newspaper, RefreshCw, ExternalLink, Loader2, Eye, Download, User, Calendar, Clock } from "lucide-react";
+import { Newspaper, RefreshCw, ExternalLink, Loader2, Eye, Download, User, Calendar, Clock, Filter, Globe, MapPin } from "lucide-react";
 import { NewsArticle } from "@shared/schema";
 
 export default function NewsDisplay() {
   const [showRephrasedOnly, setShowRephrasedOnly] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedRegion, setSelectedRegion] = useState<string>("all");
 
   const { data: articles, isLoading, refetch, isFetching } = useQuery<NewsArticle[]>({
     queryKey: ["/api/news"],
     refetchInterval: 5000,
   });
 
-  const filteredArticles = articles?.filter((article: NewsArticle) => 
-    !showRephrasedOnly || article.rephrasedTitle
-  ) || [];
+  const filteredArticles = articles?.filter((article: NewsArticle) => {
+    const matchesRephrased = !showRephrasedOnly || article.rephrasedTitle;
+    const matchesCategory = selectedCategory === "all" || article.category === selectedCategory;
+    const matchesRegion = selectedRegion === "all" || article.region === selectedRegion;
+    return matchesRephrased && matchesCategory && matchesRegion;
+  }) || [];
+
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case "technology":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+      case "business":
+        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+      case "politics":
+        return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200";
+      case "sports":
+        return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200";
+      case "science":
+        return "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200";
+      case "entertainment":
+        return "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200";
+    }
+  };
+
+  const getRegionColor = (region: string) => {
+    switch (region) {
+      case "indian":
+        return "bg-saffron-100 text-saffron-800 dark:bg-saffron-900 dark:text-saffron-200";
+      case "international":
+        return "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200";
+    }
+  };
 
   const handleRefresh = () => {
     refetch();
@@ -81,26 +117,68 @@ export default function NewsDisplay() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold flex items-center gap-2">
-          <Newspaper className="h-6 w-6" />
-          News Articles ({filteredArticles.length})
-        </h2>
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <Newspaper className="h-6 w-6" />
+            News Articles ({filteredArticles.length})
+          </h2>
+          <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isFetching}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-wrap items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
           <div className="flex items-center gap-2">
-            <label htmlFor="rephrased-only" className="text-sm font-medium">
-              Show rephrased only
-            </label>
+            <Filter className="w-4 h-4 text-gray-500" />
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filters:</span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Globe className="w-4 h-4 text-gray-500" />
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="general">General</SelectItem>
+                <SelectItem value="technology">Technology</SelectItem>
+                <SelectItem value="business">Business</SelectItem>
+                <SelectItem value="politics">Politics</SelectItem>
+                <SelectItem value="sports">Sports</SelectItem>
+                <SelectItem value="science">Science</SelectItem>
+                <SelectItem value="entertainment">Entertainment</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-gray-500" />
+            <Select value={selectedRegion} onValueChange={setSelectedRegion}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Region" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Regions</SelectItem>
+                <SelectItem value="indian">Indian News</SelectItem>
+                <SelectItem value="international">International</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-2">
             <Switch
               id="rephrased-only"
               checked={showRephrasedOnly}
               onCheckedChange={setShowRephrasedOnly}
             />
+            <label htmlFor="rephrased-only" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Show rephrased only
+            </label>
           </div>
-          <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isFetching}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
         </div>
       </div>
 
@@ -136,9 +214,18 @@ export default function NewsDisplay() {
                 <CardTitle className="text-lg leading-tight line-clamp-2 mb-2">
                   {article.rephrasedTitle || article.originalTitle}
                 </CardTitle>
-                <div className="flex items-center gap-1 text-sm text-gray-500">
+                <div className="flex items-center gap-1 text-sm text-gray-500 mb-2">
                   <Clock className="h-3 w-3" />
                   {formatTimeAgo(article.scrapedAt!.toString())}
+                </div>
+
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge className={getCategoryColor(article.category || 'general')}>
+                    {article.category || 'general'}
+                  </Badge>
+                  <Badge className={getRegionColor(article.region || 'international')}>
+                    {article.region === 'indian' ? '🇮🇳 Indian' : '🌍 International'}
+                  </Badge>
                 </div>
               </CardHeader>
               

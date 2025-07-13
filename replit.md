@@ -8,6 +8,18 @@ This is a full-stack news scraper application that automatically collects news a
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes: Latest modifications with dates
+
+### Category Filtration & Indian News Sources - July 13, 2025
+- ✅ **Added Category Filtration**: Articles now categorized into Technology, Business, Politics, Sports, Science, Entertainment, and General
+- ✅ **Added Region Classification**: Articles classified as Indian or International news
+- ✅ **Enhanced Scraper**: Modified scraper to collect 10 Indian-specific + 10 international articles per source (20 total)
+- ✅ **Added Indian News Sources**: Added India Today, NDTV, Times of India, Hindu, and Economic Times
+- ✅ **Updated Database Schema**: Added category and region fields to articles table
+- ✅ **Enhanced Frontend**: Added category and region filters in the news display interface
+- ✅ **Intelligent Classification**: AI-powered categorization based on article content and keywords
+- ✅ **Visual Indicators**: Added colored badges for categories and regions with emojis
+
 ## System Architecture
 
 ### Frontend Architecture

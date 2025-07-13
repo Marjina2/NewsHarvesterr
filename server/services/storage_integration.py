@@ -63,6 +63,8 @@ class StorageIntegration:
                     'publishedAt': article.get('publishedAt'),
                     'imageUrl': image_url,
                     'author': article.get('author'),
+                    'category': article.get('category', 'general'),
+                    'region': article.get('region', 'international'),
                 }
                 
                 response = requests.post(
