@@ -56,14 +56,14 @@ class NewsScraper:
             if article.publish_date:
                 publish_date = article.publish_date.isoformat()
 
-            # Get top image with multiple fallback methods
+            # Enhanced image extraction with multiple fallback methods
             image_url = None
             
             # Method 1: newspaper3k top image
             if article.top_image and article.top_image.startswith(('http://', 'https://')):
                 image_url = article.top_image
 
-            # Method 2: Meta tags fallback
+            # Method 2: Meta tags fallback with more comprehensive search
             if not image_url and hasattr(article, 'html') and article.html:
                 try:
                     soup = BeautifulSoup(article.html, 'html.parser')
@@ -74,7 +74,10 @@ class NewsScraper:
                         'meta[name="twitter:image"]',
                         'meta[property="twitter:image"]',
                         'meta[name="image"]',
-                        'meta[property="article:image"]'
+                        'meta[property="article:image"]',
+                        'meta[property="og:image:url"]',
+                        'meta[name="twitter:image:src"]',
+                        'meta[itemprop="image"]'
                     ]
                     
                     for selector in meta_selectors:
@@ -85,28 +88,62 @@ class NewsScraper:
                                 image_url = candidate_url
                                 break
                     
-                    # Method 3: Look for img tags in article content
+                    # Method 3: Look for img tags in article content with better filtering
                     if not image_url:
                         img_tags = soup.find_all('img', src=True)
                         for img in img_tags:
                             src = img.get('src')
-                            if src and src.startswith(('http://', 'https://')):
-                                # Skip small images (likely icons/logos)
-                                width = img.get('width')
-                                height = img.get('height')
-                                if width and height:
-                                    try:
-                                        if int(width) >= 200 and int(height) >= 150:
+                            if src:
+                                # Convert relative URLs to absolute
+                                if src.startswith('//'):
+                                    src = 'https:' + src
+                                elif src.startswith('/'):
+                                    from urllib.parse import urljoin
+                                    src = urljoin(url, src)
+                                
+                                if src.startswith(('http://', 'https://')):
+                                    # Skip known small/unwanted images
+                                    skip_patterns = ['logo', 'icon', 'avatar', 'profile', 'pixel', '1x1', 'tracking', 'analytics', 'ads']
+                                    if any(skip in src.lower() for skip in skip_patterns):
+                                        continue
+                                    
+                                    # Check dimensions if available
+                                    width = img.get('width')
+                                    height = img.get('height')
+                                    if width and height:
+                                        try:
+                                            if int(width) >= 200 and int(height) >= 150:
+                                                image_url = src
+                                                break
+                                        except:
+                                            pass
+                                    else:
+                                        # Check for common article image patterns
+                                        img_classes = img.get('class', [])
+                                        if isinstance(img_classes, list):
+                                            img_classes = ' '.join(img_classes)
+                                        
+                                        article_patterns = ['article', 'content', 'main', 'hero', 'featured', 'story']
+                                        if any(pattern in img_classes.lower() for pattern in article_patterns):
                                             image_url = src
                                             break
-                                    except:
-                                        pass
-                                else:
-                                    # If no dimensions, take the first reasonable img
-                                    if not any(skip in src.lower() for skip in ['logo', 'icon', 'avatar', 'profile']):
-                                        image_url = src
-                                        break
-                except:
+                                        
+                                        # If no specific class, check if it's a reasonably sized URL
+                                        if len(src) > 30 and not any(skip in src.lower() for skip in skip_patterns):
+                                            image_url = src
+                                            break
+                    
+                    # Method 4: Look for figure or picture elements
+                    if not image_url:
+                        figure_imgs = soup.select('figure img, picture img, .image img')
+                        for img in figure_imgs:
+                            src = img.get('src')
+                            if src and src.startswith(('http://', 'https://')):
+                                image_url = src
+                                break
+                                
+                except Exception as e:
+                    logger.warning(f"Error extracting image from HTML: {str(e)}")
                     pass
             
             # Method 4: Generate placeholder image URL based on source

@@ -287,15 +287,17 @@ export default function NewsDisplay() {
           {filteredArticles.map((article: NewsArticle) => (
             <Card key={article.id} className="hover:shadow-lg transition-shadow cursor-pointer group h-full flex flex-col">
               <div className="relative">
-                {article.imageUrl && (
-                  <div className="aspect-video w-full overflow-hidden rounded-t-lg">
-                    <img 
-                      src={article.imageUrl} 
-                      alt={article.originalTitle}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                )}
+                <div className="aspect-video w-full overflow-hidden rounded-t-lg bg-gray-100 dark:bg-gray-800">
+                  <img 
+                    src={article.imageUrl || `https://via.placeholder.com/400x250/6b7280/ffffff?text=${encodeURIComponent(article.sourceName || 'News')}`} 
+                    alt={article.originalTitle}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = `https://via.placeholder.com/400x250/6b7280/ffffff?text=${encodeURIComponent(article.sourceName || 'News')}`;
+                    }}
+                  />
+                </div>
                 <div className="absolute top-2 right-2">
                   <Badge className={getStatusColor(article.status)}>
                     {article.status}
@@ -380,15 +382,17 @@ export default function NewsDisplay() {
                           </Badge>
                         </div>
 
-                        {article.imageUrl && (
-                          <div className="aspect-video w-full overflow-hidden rounded-lg">
-                            <img 
-                              src={article.imageUrl} 
-                              alt={article.originalTitle}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        )}
+                        <div className="aspect-video w-full overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
+                          <img 
+                            src={article.imageUrl || `https://via.placeholder.com/400x250/6b7280/ffffff?text=${encodeURIComponent(article.sourceName || 'News')}`} 
+                            alt={article.originalTitle}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = `https://via.placeholder.com/400x250/6b7280/ffffff?text=${encodeURIComponent(article.sourceName || 'News')}`;
+                            }}
+                          />
+                        </div>
 
                         {article.rephrasedTitle && (
                           <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
