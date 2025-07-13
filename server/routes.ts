@@ -88,6 +88,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // All Articles JSON endpoint (must come before /:id route)
+  app.get("/api/articles/all", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 1000; // Default to 1000 articles
+      const articles = await storage.getNewsArticles(limit, 0);
+      
+      // Return complete article details as JSON array
+      const allArticles = articles.map(article => ({
+        id: article.id,
+        sourceName: article.sourceName,
+        originalTitle: article.originalTitle,
+        rephrasedTitle: article.rephrasedTitle,
+        originalUrl: article.originalUrl,
+        fullContent: article.fullContent,
+        excerpt: article.excerpt,
+        publishedAt: article.publishedAt,
+        imageUrl: article.imageUrl,
+        author: article.author,
+        category: article.category,
+        region: article.region,
+        status: article.status,
+        scrapedAt: article.scrapedAt,
+        rephrasedAt: article.rephrasedAt,
+      }));
+      
+      res.json({
+        total: allArticles.length,
+        articles: allArticles
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch all articles" });
+    }
+  });
+
   app.get("/api/articles/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -206,40 +240,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to update last run" });
-    }
-  });
-
-  // All Articles JSON endpoint
-  app.get("/api/articles/all", async (req, res) => {
-    try {
-      const limit = parseInt(req.query.limit as string) || 1000; // Default to 1000 articles
-      const articles = await storage.getNewsArticles(limit, 0);
-      
-      // Return complete article details as JSON array
-      const allArticles = articles.map(article => ({
-        id: article.id,
-        sourceName: article.sourceName,
-        originalTitle: article.originalTitle,
-        rephrasedTitle: article.rephrasedTitle,
-        originalUrl: article.originalUrl,
-        fullContent: article.fullContent,
-        excerpt: article.excerpt,
-        publishedAt: article.publishedAt,
-        imageUrl: article.imageUrl,
-        author: article.author,
-        category: article.category,
-        region: article.region,
-        status: article.status,
-        scrapedAt: article.scrapedAt,
-        rephrasedAt: article.rephrasedAt,
-      }));
-      
-      res.json({
-        total: allArticles.length,
-        articles: allArticles
-      });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch all articles" });
     }
   });
 
