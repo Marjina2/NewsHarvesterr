@@ -10,6 +10,13 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes: Latest modifications with dates
 
+### Supabase Migration & 20 News Sources - July 13, 2025
+- ✅ **Migrated to Supabase**: Successfully configured database to use Supabase instead of Neon
+- ✅ **Added 20 Comprehensive News Sources**: Includes international, technology, Indian, and business news
+- ✅ **Fixed Python Dependencies**: Installed all required scraping libraries
+- ✅ **Database Schema Applied**: All tables properly created in Supabase
+- ✅ **Environment Configuration**: Set up SUPABASE_URL and SUPABASE_ANON_KEY secrets
+
 ### Category Filtration & Indian News Sources - July 13, 2025
 - ✅ **Added Category Filtration**: Articles now categorized into Technology, Business, Politics, Sports, Science, Entertainment, and General
 - ✅ **Added Region Classification**: Articles classified as Indian or International news
