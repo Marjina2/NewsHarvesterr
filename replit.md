@@ -10,6 +10,13 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes: Latest modifications with dates
 
+### Comprehensive Documentation & Final Polish - July 13, 2025
+- ✅ **Created Detailed README**: Comprehensive documentation with architecture, setup, and usage guides
+- ✅ **Fixed Duplicate Articles**: Removed 176 duplicate articles and enhanced duplicate detection system
+- ✅ **Enhanced Image Handling**: All articles now have proper images (real images + branded placeholders)
+- ✅ **Improved Content Quality**: Enhanced full article extraction with better timeout and NLP processing
+- ✅ **Optimized Pagination**: Updated to show 20 articles per page with improved performance
+
 ### Supabase Migration & 20 News Sources - July 13, 2025
 - ✅ **Migrated to Supabase**: Successfully configured database to use Supabase instead of Neon
 - ✅ **Added 20 Comprehensive News Sources**: Includes international, technology, Indian, and business news
