@@ -946,42 +946,46 @@ class NewsScraper:
         else:
             return self.scrape_generic_news(url, source_name)
 
-    def categorize_article(self, title: str, content: str = "") -> str:
-        """Categorize article based on title and content"""
+    def categorize_article(self, title: str, content: str = "", source: str = "") -> str:
+        """Enhanced categorization based on title, content, and source"""
         title_lower = title.lower()
         content_lower = content.lower() if content else ""
+        source_lower = source.lower()
         combined = f"{title_lower} {content_lower}"
 
-        # Technology keywords
-        tech_keywords = ['ai', 'artificial intelligence', 'tech', 'technology', 'software', 'app', 'digital', 'cyber', 'robot', 'automation', 'startup', 'computer', 'internet', 'smartphone', 'gadget']
-
-        # Business keywords
-        business_keywords = ['business', 'economy', 'finance', 'market', 'stock', 'investment', 'company', 'corporate', 'trade', 'banking', 'money', 'funding', 'revenue']
-
-        # Politics keywords
-        politics_keywords = ['politics', 'government', 'minister', 'parliament', 'election', 'policy', 'law', 'court', 'supreme', 'democracy', 'vote']
-
-        # Sports keywords
-        sports_keywords = ['sports', 'cricket', 'football', 'olympics', 'match', 'team', 'player', 'game', 'championship', 'tournament']
-
-        # Science keywords
-        science_keywords = ['science', 'research', 'study', 'discovery', 'scientist', 'medicine', 'health', 'space', 'nasa', 'quantum', 'climate']
-
-        # Entertainment keywords
-        entertainment_keywords = ['movie', 'film', 'actor', 'actress', 'bollywood', 'hollywood', 'music', 'celebrity', 'entertainment']
-
-        if any(keyword in combined for keyword in tech_keywords):
+        # Source-based categorization first
+        if source_lower in ['techcrunch', 'the verge', 'engadget', 'ars technica', 'wired', 'hacker news']:
             return 'technology'
-        elif any(keyword in combined for keyword in business_keywords):
+        elif source_lower in ['bloomberg', 'wall street journal', 'forbes', 'financial times', 'economic times']:
             return 'business'
-        elif any(keyword in combined for keyword in politics_keywords):
-            return 'politics'
-        elif any(keyword in combined for keyword in sports_keywords):
-            return 'sports'
-        elif any(keyword in combined for keyword in science_keywords):
-            return 'science'
-        elif any(keyword in combined for keyword in entertainment_keywords):
-            return 'entertainment'
+
+        # Enhanced keyword matching with weighted scores
+        categories = {
+            'technology': ['ai', 'artificial intelligence', 'tech', 'technology', 'software', 'app', 'digital', 'cyber', 'robot', 'automation', 'startup', 'computer', 'internet', 'smartphone', 'gadget', 'coding', 'programming', 'data', 'algorithm', 'silicon valley', 'blockchain', 'cryptocurrency', 'metaverse', 'virtual reality', 'ar', 'vr', 'machine learning', 'iot'],
+            'business': ['business', 'economy', 'finance', 'market', 'stock', 'investment', 'company', 'corporate', 'trade', 'banking', 'money', 'funding', 'revenue', 'profit', 'earnings', 'merger', 'acquisition', 'ipo', 'nasdaq', 'dow jones', 'economic', 'financial', 'billion', 'million', 'dollar', 'rupee', 'gdp', 'inflation'],
+            'politics': ['politics', 'government', 'minister', 'parliament', 'election', 'policy', 'law', 'court', 'supreme', 'democracy', 'vote', 'president', 'prime minister', 'congress', 'senate', 'cabinet', 'diplomatic', 'treaty', 'sanctions', 'constitutional', 'legislature', 'judicial', 'executive'],
+            'sports': ['sports', 'cricket', 'football', 'olympics', 'match', 'team', 'player', 'game', 'championship', 'tournament', 'soccer', 'basketball', 'tennis', 'hockey', 'swimming', 'athletics', 'medal', 'victory', 'defeat', 'score', 'league'],
+            'science': ['science', 'research', 'study', 'discovery', 'scientist', 'medicine', 'health', 'space', 'nasa', 'quantum', 'climate', 'medical', 'pharmaceutical', 'vaccine', 'treatment', 'diagnosis', 'hospital', 'doctor', 'patient', 'therapy', 'clinical trial', 'breakthrough'],
+            'entertainment': ['movie', 'film', 'actor', 'actress', 'bollywood', 'hollywood', 'music', 'celebrity', 'entertainment', 'cinema', 'director', 'producer', 'album', 'song', 'concert', 'festival', 'award', 'oscar', 'emmy', 'grammy', 'netflix', 'streaming']
+        }
+
+        # Calculate scores for each category
+        scores = {}
+        for category, keywords in categories.items():
+            score = 0
+            for keyword in keywords:
+                if keyword in combined:
+                    # Give higher weight to title matches
+                    if keyword in title_lower:
+                        score += 3
+                    else:
+                        score += 1
+            scores[category] = score
+
+        # Return category with highest score, minimum threshold of 2
+        max_category = max(scores, key=scores.get)
+        if scores[max_category] >= 2:
+            return max_category
         else:
             return 'general'
 
@@ -1034,16 +1038,61 @@ class NewsScraper:
         return result[:target_articles]
 
     def scrape_all_sources(self, sources: List[Dict]) -> List[Dict]:
-        """Scrape all configured news sources with category filtering"""
+        """Scrape all sources with balanced category distribution and duplicate prevention"""
         all_articles = []
+        seen_titles = set()  # Track titles to prevent duplicates
+        
+        # Target distribution: 10 articles per category
+        category_targets = {
+            'technology': 20,
+            'business': 20, 
+            'politics': 20,
+            'sports': 15,
+            'science': 15,
+            'entertainment': 15,
+            'general': 15
+        }
+        category_counts = {cat: 0 for cat in category_targets.keys()}
 
         for source in sources:
             if source.get('isActive', True):
                 logger.info(f"Scraping {source['name']} for categorized content")
-                articles = self.scrape_source_with_categories(source['url'], source['name'], 20)
-                logger.info(f"Got {len(articles)} articles from {source['name']}")
-                all_articles.extend(articles)
+                articles = self.scrape_source(source['url'], source['name'])
+                
+                processed_articles = []
+                for article in articles:
+                    # Skip duplicates based on title similarity
+                    title_clean = article['title'].strip().lower()
+                    if title_clean in seen_titles:
+                        continue
+                    
+                    # Add enhanced categorization
+                    category = self.categorize_article(
+                        article['title'], 
+                        article.get('fullContent', ''), 
+                        source['name']
+                    )
+                    region = self.detect_indian_content(
+                        article['title'], 
+                        article.get('fullContent', ''), 
+                        source['name']
+                    )
+                    
+                    article['category'] = category
+                    article['region'] = region
+                    
+                    # Only add if we haven't reached the target for this category
+                    if category_counts[category] < category_targets[category]:
+                        processed_articles.append(article)
+                        seen_titles.add(title_clean)
+                        category_counts[category] += 1
+                
+                logger.info(f"Got {len(processed_articles)} unique articles from {source['name']}")
+                all_articles.extend(processed_articles)
                 time.sleep(1)  # Be respectful to servers
+                
+                # Log current category distribution
+                logger.info(f"Current category distribution: {category_counts}")
 
         return all_articles
 
