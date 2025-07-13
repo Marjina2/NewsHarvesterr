@@ -5,14 +5,25 @@ import * as schema from "@shared/schema";
 
 neonConfig.webSocketConstructor = ws;
 
-// Support both Supabase and Neon databases
-const databaseUrl = process.env.SUPABASE_URL 
-  ? `${process.env.SUPABASE_URL}/postgres?sslmode=require` 
-  : process.env.DATABASE_URL;
+// Create proper database connection URL for Supabase or Neon
+let databaseUrl: string;
 
-if (!databaseUrl) {
+if (process.env.SUPABASE_URL) {
+  // Extract the connection string for Supabase
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const projectRef = supabaseUrl.split('//')[1].split('.')[0];
+  databaseUrl = `postgresql://postgres.${projectRef}:[YOUR-PASSWORD]@aws-0-us-west-1.pooler.supabase.com:6543/postgres`;
+  
+  // For now, use the Neon database while we configure Supabase properly
+  if (!process.env.DATABASE_URL) {
+    throw new Error("Please use DATABASE_URL for now while we configure Supabase properly");
+  }
+  databaseUrl = process.env.DATABASE_URL;
+} else if (process.env.DATABASE_URL) {
+  databaseUrl = process.env.DATABASE_URL;
+} else {
   throw new Error(
-    "DATABASE_URL or SUPABASE_URL must be set. Did you forget to provision a database?",
+    "DATABASE_URL must be set. Did you forget to provision a database?",
   );
 }
 
