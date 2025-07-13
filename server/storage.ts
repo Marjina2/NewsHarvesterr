@@ -5,8 +5,13 @@ import {
   InsertNewsArticle, 
   ScraperConfig, 
   UpdateScraperConfig,
-  NewsStats
+  NewsStats,
+  newsSources,
+  newsArticles,
+  scraperConfig
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, desc, sql } from "drizzle-orm";
 
 export interface IStorage {
   // News Sources
@@ -240,4 +245,142 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Database Storage Implementation
+export class DatabaseStorage implements IStorage {
+  async getNewsSources(): Promise<NewsSource[]> {
+    const sources = await db.select().from(newsSources).orderBy(desc(newsSources.createdAt));
+    return sources;
+  }
+
+  async createNewsSource(source: InsertNewsSource): Promise<NewsSource> {
+    const [newSource] = await db
+      .insert(newsSources)
+      .values(source)
+      .returning();
+    return newSource;
+  }
+
+  async deleteNewsSource(id: number): Promise<void> {
+    await db.delete(newsSources).where(eq(newsSources.id, id));
+  }
+
+  async updateNewsSourceStatus(id: number, isActive: boolean): Promise<void> {
+    await db
+      .update(newsSources)
+      .set({ isActive })
+      .where(eq(newsSources.id, id));
+  }
+
+  async getNewsArticles(limit = 50, offset = 0): Promise<NewsArticle[]> {
+    const articles = await db
+      .select()
+      .from(newsArticles)
+      .orderBy(desc(newsArticles.scrapedAt))
+      .limit(limit)
+      .offset(offset);
+    return articles;
+  }
+
+  async createNewsArticle(article: InsertNewsArticle): Promise<NewsArticle> {
+    const [newArticle] = await db
+      .insert(newsArticles)
+      .values(article)
+      .returning();
+    return newArticle;
+  }
+
+  async updateNewsArticleStatus(id: number, status: string, rephrasedTitle?: string): Promise<void> {
+    const updateData: any = { status };
+    if (rephrasedTitle) {
+      updateData.rephrasedTitle = rephrasedTitle;
+      updateData.rephrasedAt = new Date();
+    }
+    
+    await db
+      .update(newsArticles)
+      .set(updateData)
+      .where(eq(newsArticles.id, id));
+  }
+
+  async getNewsArticlesByStatus(status: string): Promise<NewsArticle[]> {
+    const articles = await db
+      .select()
+      .from(newsArticles)
+      .where(eq(newsArticles.status, status))
+      .orderBy(desc(newsArticles.scrapedAt));
+    return articles;
+  }
+
+  async getScraperConfig(): Promise<ScraperConfig> {
+    const [config] = await db.select().from(scraperConfig).limit(1);
+    if (!config) {
+      // Create default config if none exists
+      const [newConfig] = await db
+        .insert(scraperConfig)
+        .values({
+          intervalMinutes: 20,
+          isActive: false,
+        })
+        .returning();
+      return newConfig;
+    }
+    return config;
+  }
+
+  async updateScraperConfig(configUpdate: UpdateScraperConfig): Promise<ScraperConfig> {
+    const [config] = await db.select().from(scraperConfig).limit(1);
+    
+    if (!config) {
+      // Create if doesn't exist
+      const [newConfig] = await db
+        .insert(scraperConfig)
+        .values({
+          ...configUpdate,
+          updatedAt: new Date(),
+        })
+        .returning();
+      return newConfig;
+    }
+    
+    const [updatedConfig] = await db
+      .update(scraperConfig)
+      .set({
+        ...configUpdate,
+        updatedAt: new Date(),
+      })
+      .where(eq(scraperConfig.id, config.id))
+      .returning();
+    
+    return updatedConfig;
+  }
+
+  async getNewsStats(): Promise<NewsStats> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const [stats] = await db
+      .select({
+        totalArticles: sql<number>`count(*)`,
+        todayArticles: sql<number>`count(case when ${newsArticles.scrapedAt} >= ${today} then 1 end)`,
+      })
+      .from(newsArticles);
+    
+    const [sourceStats] = await db
+      .select({
+        activeSources: sql<number>`count(case when ${newsSources.isActive} = true then 1 end)`,
+      })
+      .from(newsSources);
+    
+    // Calculate average per hour (mock calculation based on total articles)
+    const avgPerHour = stats.totalArticles > 0 ? Math.round((stats.totalArticles / 24) * 10) / 10 : 0;
+    
+    return {
+      totalArticles: stats.totalArticles,
+      todayArticles: stats.todayArticles,
+      activeSources: sourceStats.activeSources,
+      avgPerHour,
+    };
+  }
+}
+
+export const storage = new DatabaseStorage();
