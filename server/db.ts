@@ -2,12 +2,12 @@ import { Pool } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import * as schema from "@shared/schema";
 
-// Use DATABASE_URL environment variable for Supabase connection
-const databaseUrl = process.env.DATABASE_URL;
+// Use SUPABASE_URL environment variable for Supabase connection
+const databaseUrl = process.env.SUPABASE_URL;
 
 if (!databaseUrl) {
   throw new Error(
-    "DATABASE_URL environment variable is required. Please set it to your Supabase PostgreSQL connection string.",
+    "SUPABASE_URL environment variable is required. Please set it to your Supabase PostgreSQL connection string.",
   );
 }
 
