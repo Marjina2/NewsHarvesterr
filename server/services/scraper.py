@@ -1098,9 +1098,12 @@ class NewsScraper:
                 
                 processed_articles = []
                 for article in articles:
-                    # Skip duplicates based on title similarity
+                    # Enhanced duplicate detection
                     title_clean = article['title'].strip().lower()
-                    if title_clean in seen_titles:
+                    # Create a more robust duplicate key using title and source
+                    duplicate_key = f"{title_clean}_{source['name'].lower()}"
+                    
+                    if duplicate_key in seen_titles:
                         continue
                     
                     # Add enhanced categorization
@@ -1121,7 +1124,7 @@ class NewsScraper:
                     # Only add if we haven't reached the target for this category
                     if category_counts[category] < category_targets[category]:
                         processed_articles.append(article)
-                        seen_titles.add(title_clean)
+                        seen_titles.add(duplicate_key)
                         category_counts[category] += 1
                 
                 logger.info(f"Got {len(processed_articles)} unique articles from {source['name']}")
