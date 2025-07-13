@@ -47,23 +47,97 @@ class NewsScraper:
             if article.publish_date:
                 publish_date = article.publish_date.isoformat()
 
-            # Get top image with faster validation
+            # Get top image with multiple fallback methods
             image_url = None
+            
+            # Method 1: newspaper3k top image
             if article.top_image and article.top_image.startswith(('http://', 'https://')):
-                # Skip validation for speed - just use the URL
                 image_url = article.top_image
 
-            # Quick fallback to meta tags for image
+            # Method 2: Meta tags fallback
             if not image_url and hasattr(article, 'html') and article.html:
                 try:
                     soup = BeautifulSoup(article.html, 'html.parser')
-                    meta_image = soup.find('meta', property='og:image')
-                    if meta_image and meta_image.get('content'):
-                        candidate_url = meta_image.get('content')
-                        if candidate_url.startswith(('http://', 'https://')):
-                            image_url = candidate_url
+                    
+                    # Try multiple meta tag variations
+                    meta_selectors = [
+                        'meta[property="og:image"]',
+                        'meta[name="twitter:image"]',
+                        'meta[property="twitter:image"]',
+                        'meta[name="image"]',
+                        'meta[property="article:image"]'
+                    ]
+                    
+                    for selector in meta_selectors:
+                        meta_tag = soup.select_one(selector)
+                        if meta_tag and meta_tag.get('content'):
+                            candidate_url = meta_tag.get('content')
+                            if candidate_url.startswith(('http://', 'https://')):
+                                image_url = candidate_url
+                                break
+                    
+                    # Method 3: Look for img tags in article content
+                    if not image_url:
+                        img_tags = soup.find_all('img', src=True)
+                        for img in img_tags:
+                            src = img.get('src')
+                            if src and src.startswith(('http://', 'https://')):
+                                # Skip small images (likely icons/logos)
+                                width = img.get('width')
+                                height = img.get('height')
+                                if width and height:
+                                    try:
+                                        if int(width) >= 200 and int(height) >= 150:
+                                            image_url = src
+                                            break
+                                    except:
+                                        pass
+                                else:
+                                    # If no dimensions, take the first reasonable img
+                                    if not any(skip in src.lower() for skip in ['logo', 'icon', 'avatar', 'profile']):
+                                        image_url = src
+                                        break
                 except:
                     pass
+            
+            # Method 4: Generate placeholder image URL based on source
+            if not image_url:
+                # Create a placeholder image URL based on the source domain
+                try:
+                    from urllib.parse import urlparse
+                    domain = urlparse(url).netloc.lower()
+                    
+                    # Use a placeholder service with source-specific styling
+                    if 'bbc' in domain:
+                        image_url = "https://via.placeholder.com/400x250/bb1919/ffffff?text=BBC+News"
+                    elif 'cnn' in domain:
+                        image_url = "https://via.placeholder.com/400x250/cc0000/ffffff?text=CNN"
+                    elif 'reuters' in domain:
+                        image_url = "https://via.placeholder.com/400x250/ff6600/ffffff?text=Reuters"
+                    elif 'techcrunch' in domain:
+                        image_url = "https://via.placeholder.com/400x250/00d4aa/ffffff?text=TechCrunch"
+                    elif 'guardian' in domain:
+                        image_url = "https://via.placeholder.com/400x250/0084c6/ffffff?text=The+Guardian"
+                    elif 'ndtv' in domain:
+                        image_url = "https://via.placeholder.com/400x250/e31e24/ffffff?text=NDTV"
+                    elif 'indiatoday' in domain:
+                        image_url = "https://via.placeholder.com/400x250/dc143c/ffffff?text=India+Today"
+                    elif 'thehindu' in domain:
+                        image_url = "https://via.placeholder.com/400x250/004080/ffffff?text=The+Hindu"
+                    elif 'timesofindia' in domain:
+                        image_url = "https://via.placeholder.com/400x250/ff4500/ffffff?text=Times+of+India"
+                    elif 'engadget' in domain:
+                        image_url = "https://via.placeholder.com/400x250/00bcd4/ffffff?text=Engadget"
+                    elif 'wired' in domain:
+                        image_url = "https://via.placeholder.com/400x250/000000/ffffff?text=WIRED"
+                    elif 'verge' in domain:
+                        image_url = "https://via.placeholder.com/400x250/fa4616/ffffff?text=The+Verge"
+                    elif 'ycombinator' in domain:
+                        image_url = "https://via.placeholder.com/400x250/ff6600/ffffff?text=Hacker+News"
+                    else:
+                        image_url = "https://via.placeholder.com/400x250/6b7280/ffffff?text=News+Article"
+                except:
+                    image_url = "https://via.placeholder.com/400x250/6b7280/ffffff?text=News+Article"
 
             return {
                 'fullContent': content if content and len(content) > 50 else None,
