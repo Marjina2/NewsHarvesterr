@@ -95,8 +95,11 @@ class NewsScraperScheduler:
                     logger.error(f"Error processing article {article['id']}: {str(e)}")
                     self.storage.update_article_status(article['id'], 'failed')
             
-            # Update last run time in storage
+            # Update last run time in storage and local config
             self.storage.update_scraper_last_run()
+            config = self.load_config()
+            config["last_run"] = datetime.now().isoformat()
+            self.save_config(config)
             
             logger.info(f"Completed job: {len(articles)} articles scraped, {len(pending_articles)} processed")
             
@@ -107,6 +110,11 @@ class NewsScraperScheduler:
         """Start the scheduler"""
         self.is_running = True
         logger.info("News scraper scheduler started")
+        
+        # Reset last run when starting to ensure fresh scrape
+        config = self.load_config()
+        config["last_run"] = None
+        self.save_config(config)
         
         while self.is_running:
             config = self.load_config()
