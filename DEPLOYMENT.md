@@ -46,9 +46,12 @@ Start Command: npm start
 
 ### Step 3: Environment Variables
 Add these environment variables in Render dashboard:
-- `DATABASE_URL` - Your PostgreSQL connection string
+- `DATABASE_URL` - Your PostgreSQL connection string (**REQUIRED**)
+- `MASTER_TOKEN` - Your secure authentication token (**REQUIRED**)
 - `OPENROUTER_API_KEY` - (Optional) For AI features
 - `NODE_ENV` - Set to "production"
+
+**CRITICAL**: The DATABASE_URL must be a valid PostgreSQL connection string. The application has been fixed to properly use this variable for all database connections.
 
 ### Step 4: Database Migration
 After first deployment, run:
@@ -70,8 +73,14 @@ The app includes a health check endpoint at `/api/health` for monitoring.
 
 **Database Connection**
 - Verify DATABASE_URL format: `postgresql://user:pass@host:port/db`
-- Check database is accessible from Render
+- Check database is accessible from Render  
 - Run database migrations after deployment
+- **FIXED**: Removed hardcoded Supabase error that was blocking deployment
+
+**Authentication Issues**
+- Ensure MASTER_TOKEN is set in environment variables
+- Token should be at least 32 characters long
+- All API endpoints are now protected with authentication
 
 **Python Dependencies**
 - Python services run as child processes
