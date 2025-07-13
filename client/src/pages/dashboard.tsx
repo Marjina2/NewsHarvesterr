@@ -47,6 +47,18 @@ export default function Dashboard() {
                 <p className="text-sm text-slate-500">AI-powered news aggregation and rephrasing</p>
               </div>
             </div>
+            {/* API URL Display */}
+            <div className="mt-4 p-3 bg-white/70 rounded-lg inline-block">
+              <p className="text-sm text-gray-700">
+                <span className="font-semibold">API Base URL:</span>{" "}
+                <code className="bg-gray-100 px-2 py-1 rounded text-blue-600 font-mono">
+                  {window.location.origin}/api
+                </code>
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                All Articles JSON: <code className="bg-gray-100 px-1 rounded">/api/articles/all</code>
+              </p>
+            </div>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                 <div className={`w-3 h-3 rounded-full ${status.color}`} />
