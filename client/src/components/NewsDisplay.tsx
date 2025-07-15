@@ -48,7 +48,7 @@ export default function NewsDisplay() {
         throw new Error('Failed to fetch stats');
       }
       const data = await response.json();
-      return { total: parseInt(data.totalArticles) };
+      return data; // Return the full stats data
     },
     staleTime: 60000,
   });
@@ -144,8 +144,12 @@ export default function NewsDisplay() {
     setCurrentPage(newPage);
   };
 
-  const totalArticles = allArticlesData?.total || 0;
+  const totalArticles = allArticlesData ? parseInt(allArticlesData.totalArticles) || 0 : 0;
   const totalPages = Math.max(1, Math.ceil(totalArticles / articlesPerPage));
+  
+  // Debug logging
+  console.log('Debug pagination:', { totalArticles, articlesPerPage, totalPages, currentPage });
+  console.log('Articles data:', articles?.length, 'Stats data:', allArticlesData);
 
   if (isLoading) {
     return (
@@ -223,8 +227,8 @@ export default function NewsDisplay() {
         </div>
       </div>
 
-      {/* Pagination Controls */}
-      {totalPages > 1 && (
+      {/* Pagination Controls - Show when we have 20 articles or more total articles detected */}
+      {(totalArticles > articlesPerPage || (articles && articles.length >= articlesPerPage)) && (
         <div className="flex items-center justify-between mb-6">
           <div className="text-sm text-gray-500">
             Page {currentPage} of {totalPages} ({totalArticles} total articles) 
@@ -466,7 +470,7 @@ export default function NewsDisplay() {
       )}
 
       {/* Bottom Pagination Controls */}
-      {totalPages > 1 && (
+      {(totalArticles > articlesPerPage || (articles && articles.length >= articlesPerPage)) && (
         <div className="flex items-center justify-center mt-8">
           <div className="flex items-center gap-2">
             <Button
