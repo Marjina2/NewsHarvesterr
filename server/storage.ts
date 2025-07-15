@@ -34,12 +34,167 @@ export interface IStorage {
   getNewsStats(): Promise<NewsStats>;
 }
 
-class Storage {
+// In-memory storage implementation for development
+class MemoryStorage implements IStorage {
+  private sources: NewsSource[] = [];
+  private articles: NewsArticle[] = [];
+  private config: ScraperConfig;
+  private nextId = 1;
+  private nextArticleId = 1;
+
   constructor() {
+    this.config = {
+      id: 1,
+      isActive: false,
+      intervalMinutes: 30,
+      lastRunAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
     this.initializeDefaultData();
   }
 
+  private initializeDefaultData() {
+    // Add default sources
+    const defaultSources: InsertNewsSource[] = [
+      { name: "BBC News", url: "https://www.bbc.com/news", isActive: true },
+      { name: "Reuters", url: "https://www.reuters.com", isActive: true },
+      { name: "TechCrunch", url: "https://techcrunch.com", isActive: true },
+      { name: "Hacker News", url: "https://news.ycombinator.com", isActive: true },
+      { name: "CNN", url: "https://www.cnn.com", isActive: true },
+      { name: "The Guardian", url: "https://www.theguardian.com", isActive: true },
+      { name: "NPR", url: "https://www.npr.org", isActive: true },
+      { name: "Associated Press", url: "https://apnews.com", isActive: true },
+      { name: "India Today", url: "https://www.indiatoday.in", isActive: true },
+      { name: "NDTV", url: "https://www.ndtv.com", isActive: true },
+      { name: "Times of India", url: "https://timesofindia.indiatimes.com", isActive: true },
+      { name: "The Hindu", url: "https://www.thehindu.com", isActive: true },
+      { name: "Economic Times", url: "https://economictimes.indiatimes.com", isActive: true },
+      { name: "WIRED", url: "https://www.wired.com", isActive: true },
+      { name: "Engadget", url: "https://www.engadget.com", isActive: true },
+      { name: "Ars Technica", url: "https://arstechnica.com", isActive: true },
+      { name: "The Verge", url: "https://www.theverge.com", isActive: true },
+    ];
+
+    defaultSources.forEach(source => {
+      this.sources.push({
+        ...source,
+        id: this.nextId++,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+    });
+  }
+
+  async getNewsSources(): Promise<NewsSource[]> {
+    return [...this.sources].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async createNewsSource(source: InsertNewsSource): Promise<NewsSource> {
+    const newSource: NewsSource = {
+      ...source,
+      id: this.nextId++,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.sources.push(newSource);
+    return newSource;
+  }
+
+  async deleteNewsSource(id: number): Promise<void> {
+    this.sources = this.sources.filter(source => source.id !== id);
+  }
+
+  async updateNewsSourceStatus(id: number, isActive: boolean): Promise<void> {
+    const source = this.sources.find(s => s.id === id);
+    if (source) {
+      source.isActive = isActive;
+      source.updatedAt = new Date();
+    }
+  }
+
+  async getNewsArticles(limit: number = 50, offset: number = 0): Promise<NewsArticle[]> {
+    const sorted = [...this.articles].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return sorted.slice(offset, offset + limit);
+  }
+
+  async createNewsArticle(article: InsertNewsArticle): Promise<NewsArticle> {
+    const newArticle: NewsArticle = {
+      ...article,
+      id: this.nextArticleId++,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.articles.push(newArticle);
+    return newArticle;
+  }
+
+  async updateNewsArticleStatus(id: number, status: string, rephrasedTitle?: string): Promise<void> {
+    const article = this.articles.find(a => a.id === id);
+    if (article) {
+      article.status = status;
+      if (rephrasedTitle) {
+        article.rephrasedTitle = rephrasedTitle;
+      }
+      article.updatedAt = new Date();
+    }
+  }
+
+  async getNewsArticlesByStatus(status: string): Promise<NewsArticle[]> {
+    return this.articles.filter(article => article.status === status);
+  }
+
+  async getScraperConfig(): Promise<ScraperConfig> {
+    return { ...this.config };
+  }
+
+  async updateScraperConfig(configUpdate: UpdateScraperConfig): Promise<ScraperConfig> {
+    this.config = {
+      ...this.config,
+      ...configUpdate,
+      updatedAt: new Date()
+    };
+    return { ...this.config };
+  }
+
+  async getNewsStats(): Promise<NewsStats> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const todayArticles = this.articles.filter(article => 
+      article.createdAt >= today
+    ).length;
+
+    const activeSources = this.sources.filter(source => source.isActive).length;
+    
+    return {
+      totalArticles: this.articles.length,
+      todayArticles,
+      activeSources,
+      avgPerHour: todayArticles / 24
+    };
+  }
+}
+
+class Storage implements IStorage {
+  private memoryStorage: MemoryStorage;
+  private useDatabase: boolean;
+
+  constructor() {
+    this.useDatabase = db !== null;
+    this.memoryStorage = new MemoryStorage();
+    
+    if (this.useDatabase) {
+      console.log("Using database storage");
+      this.initializeDefaultData();
+    } else {
+      console.log("Using in-memory storage for development");
+    }
+  }
+
   private async initializeDefaultData() {
+    if (!this.useDatabase) return;
+    
     try {
       // Check if scraper config exists, if not create it
       const existingConfig = await db.select().from(scraperConfig).limit(1);
@@ -58,6 +213,19 @@ class Storage {
           { name: "Reuters", url: "https://www.reuters.com", isActive: true },
           { name: "TechCrunch", url: "https://techcrunch.com", isActive: true },
           { name: "Hacker News", url: "https://news.ycombinator.com", isActive: true },
+          { name: "CNN", url: "https://www.cnn.com", isActive: true },
+          { name: "The Guardian", url: "https://www.theguardian.com", isActive: true },
+          { name: "NPR", url: "https://www.npr.org", isActive: true },
+          { name: "Associated Press", url: "https://apnews.com", isActive: true },
+          { name: "India Today", url: "https://www.indiatoday.in", isActive: true },
+          { name: "NDTV", url: "https://www.ndtv.com", isActive: true },
+          { name: "Times of India", url: "https://timesofindia.indiatimes.com", isActive: true },
+          { name: "The Hindu", url: "https://www.thehindu.com", isActive: true },
+          { name: "Economic Times", url: "https://economictimes.indiatimes.com", isActive: true },
+          { name: "WIRED", url: "https://www.wired.com", isActive: true },
+          { name: "Engadget", url: "https://www.engadget.com", isActive: true },
+          { name: "Ars Technica", url: "https://arstechnica.com", isActive: true },
+          { name: "The Verge", url: "https://www.theverge.com", isActive: true },
         ];
 
         await db.insert(newsSources).values(defaultSources);
@@ -68,6 +236,10 @@ class Storage {
   }
 
   async getNewsSources(): Promise<NewsSource[]> {
+    if (!this.useDatabase) {
+      return this.memoryStorage.getNewsSources();
+    }
+    
     try {
       return await db.select().from(newsSources).orderBy(desc(newsSources.createdAt));
     } catch (error) {
@@ -77,6 +249,10 @@ class Storage {
   }
 
   async createNewsSource(source: InsertNewsSource): Promise<NewsSource> {
+    if (!this.useDatabase) {
+      return this.memoryStorage.createNewsSource(source);
+    }
+    
     try {
       const [newSource] = await db.insert(newsSources).values(source).returning();
       return newSource;
@@ -87,6 +263,10 @@ class Storage {
   }
 
   async deleteNewsSource(id: number): Promise<void> {
+    if (!this.useDatabase) {
+      return this.memoryStorage.deleteNewsSource(id);
+    }
+    
     try {
       await db.delete(newsSources).where(eq(newsSources.id, id));
     } catch (error) {
@@ -95,7 +275,26 @@ class Storage {
     }
   }
 
+  async updateNewsSourceStatus(id: number, isActive: boolean): Promise<void> {
+    if (!this.useDatabase) {
+      return this.memoryStorage.updateNewsSourceStatus(id, isActive);
+    }
+    
+    try {
+      await db.update(newsSources)
+        .set({ isActive, updatedAt: new Date() })
+        .where(eq(newsSources.id, id));
+    } catch (error) {
+      console.error("Error updating news source status:", error);
+      throw error;
+    }
+  }
+
   async getNewsArticles(limit: number = 50, offset: number = 0): Promise<NewsArticle[]> {
+    if (!this.useDatabase) {
+      return this.memoryStorage.getNewsArticles(limit, offset);
+    }
+    
     try {
       return await db.select()
         .from(newsArticles)
@@ -109,6 +308,10 @@ class Storage {
   }
 
   async createNewsArticle(article: InsertNewsArticle): Promise<NewsArticle> {
+    if (!this.useDatabase) {
+      return this.memoryStorage.createNewsArticle(article);
+    }
+    
     try {
       const [newArticle] = await db.insert(newsArticles).values({
         ...article,
@@ -123,6 +326,10 @@ class Storage {
   }
 
   async updateNewsArticleStatus(id: number, status: string, rephrasedTitle?: string): Promise<void> {
+    if (!this.useDatabase) {
+      return this.memoryStorage.updateNewsArticleStatus(id, status, rephrasedTitle);
+    }
+    
     try {
       const updateData: any = { status };
       if (rephrasedTitle) {
@@ -140,6 +347,10 @@ class Storage {
   }
 
   async getNewsArticlesByStatus(status: string): Promise<NewsArticle[]> {
+    if (!this.useDatabase) {
+      return this.memoryStorage.getNewsArticlesByStatus(status);
+    }
+    
     try {
       return await db.select()
         .from(newsArticles)
@@ -152,6 +363,10 @@ class Storage {
   }
 
   async getScraperConfig(): Promise<ScraperConfig> {
+    if (!this.useDatabase) {
+      return this.memoryStorage.getScraperConfig();
+    }
+    
     try {
       const configs = await db.select().from(scraperConfig).limit(1);
       if (configs.length === 0) {
@@ -170,6 +385,10 @@ class Storage {
   }
 
   async updateScraperConfig(configUpdate: UpdateScraperConfig): Promise<ScraperConfig> {
+    if (!this.useDatabase) {
+      return this.memoryStorage.updateScraperConfig(configUpdate);
+    }
+    
     try {
       const [config] = await db.select().from(scraperConfig).limit(1);
 
@@ -201,7 +420,11 @@ class Storage {
     }
   }
 
-  async getNewsStats() {
+  async getNewsStats(): Promise<NewsStats> {
+    if (!this.useDatabase) {
+      return this.memoryStorage.getNewsStats();
+    }
+    
     try {
       const [articleStats] = await db.select({
         totalArticles: sql<number>`count(*)`,
@@ -218,15 +441,11 @@ class Storage {
         activeSources: sql<number>`count(*)`,
       }).from(newsSources).where(eq(newsSources.isActive, true));
 
-      const [totalSourceStats] = await db.select({
-        totalSources: sql<number>`count(*)`,
-      }).from(newsSources);
-
       return {
         totalArticles: articleStats?.totalArticles || 0,
         todayArticles: todayStats?.todayArticles || 0,
         activeSources: sourceStats?.activeSources || 0,
-        totalSources: totalSourceStats?.totalSources || 0,
+        avgPerHour: (todayStats?.todayArticles || 0) / 24
       };
     } catch (error) {
       console.error("Error fetching news stats:", error);
@@ -234,7 +453,7 @@ class Storage {
         totalArticles: 0,
         todayArticles: 0,
         activeSources: 0,
-        totalSources: 0,
+        avgPerHour: 0
       };
     }
   }

@@ -10,9 +10,8 @@ let db: any = null;
 
 if (databaseUrl) {
   try {
-    console.log("Connecting to database with URL:", databaseUrl.substring(0, 50) + "...");
-    console.log("Database URL contains password:", databaseUrl.includes(':') && databaseUrl.split(':').length > 3);
-
+    console.log("Connecting to database...");
+    
     pool = new Pool({ 
       connectionString: databaseUrl,
       ssl: databaseUrl.includes('localhost') ? false : { rejectUnauthorized: false },
@@ -29,13 +28,11 @@ if (databaseUrl) {
     console.log("Database connection established successfully");
   } catch (error) {
     console.error("Database connection failed:", error.message);
-    console.error("Full error:", error);
     pool = null;
     db = null;
   }
 } else {
-  console.error("DATABASE_URL environment variable is not set");
-  console.log("Available environment variables:", Object.keys(process.env).filter(key => key.includes('DATABASE')));
+  console.log("DATABASE_URL not set, using in-memory storage for development");
 }
 
 export { pool, db };
