@@ -10,6 +10,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes: Latest modifications with dates
 
+### Performance Optimization & Speed Improvements - July 15, 2025
+- ✅ **Optimized Scraper Speed**: Reduced article extraction timeout from 15s to 8s for faster processing
+- ✅ **Streamlined Image Processing**: Simplified image extraction to use only top 3 meta tag selectors
+- ✅ **Batch Processing**: Implemented batch processing for AI rephrasing (10 articles per batch)
+- ✅ **Removed Unnecessary Operations**: Disabled NLP processing and extended scraping for speed
+- ✅ **Memory Optimization**: Disabled article caching and follow redirects for better performance
+- ✅ **Faster Duplicate Detection**: Streamlined duplicate checking algorithm for quicker processing
+
 ### Enhanced Scraper for 240 Articles & Fixed Pagination - July 15, 2025
 - ✅ **Enhanced Scraper Algorithm**: Upgraded scraper to collect exactly 240 articles per run (20 per source)
 - ✅ **Balanced Article Distribution**: Each source provides 10 Indian + 10 international articles across diverse categories

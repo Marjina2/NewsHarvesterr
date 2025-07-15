@@ -30,22 +30,23 @@ class NewsScraper:
                     'author': None
                 }
 
-            # Enhanced article extraction with better configuration
+            # Optimized article extraction with faster configuration
             article = Article(url)
-            article.config.request_timeout = 15  # Increased timeout for better content
+            article.config.request_timeout = 8  # Reduced timeout for faster processing
             article.config.browser_user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            article.config.follow_meta_refresh = True
+            article.config.follow_meta_refresh = False  # Disable for speed
             article.config.fetch_images = False  # Skip images for faster processing
+            article.config.memoize_articles = False  # Disable caching for memory efficiency
             
             article.download()
             article.parse()
             
-            # Try to extract more content using NLP if needed
-            if len(article.text.strip()) < 500:  # If content seems short, try NLP
-                try:
-                    article.nlp()
-                except:
-                    pass
+            # Skip NLP processing for speed - basic parsing is sufficient
+            # if len(article.text.strip()) < 500:  # If content seems short, try NLP
+            #     try:
+            #         article.nlp()
+            #     except:
+            #         pass
 
             # Clean and format the content
             content = article.text.strip()
@@ -63,21 +64,16 @@ class NewsScraper:
             if article.top_image and article.top_image.startswith(('http://', 'https://')):
                 image_url = article.top_image
 
-            # Method 2: Meta tags fallback with more comprehensive search
+            # Method 2: Optimized meta tags search (fewer selectors for speed)
             if not image_url and hasattr(article, 'html') and article.html:
                 try:
                     soup = BeautifulSoup(article.html, 'html.parser')
                     
-                    # Try multiple meta tag variations
+                    # Try only the most common meta tag variations for speed
                     meta_selectors = [
                         'meta[property="og:image"]',
                         'meta[name="twitter:image"]',
-                        'meta[property="twitter:image"]',
-                        'meta[name="image"]',
-                        'meta[property="article:image"]',
-                        'meta[property="og:image:url"]',
-                        'meta[name="twitter:image:src"]',
-                        'meta[itemprop="image"]'
+                        'meta[property="twitter:image"]'
                     ]
                     
                     for selector in meta_selectors:
@@ -88,9 +84,9 @@ class NewsScraper:
                                 image_url = candidate_url
                                 break
                     
-                    # Method 3: Look for img tags in article content with better filtering
+                    # Method 3: Simplified img tag search for speed
                     if not image_url:
-                        img_tags = soup.find_all('img', src=True)
+                        img_tags = soup.find_all('img', src=True, limit=5)  # Limit to first 5 images
                         for img in img_tags:
                             src = img.get('src')
                             if src:
@@ -102,26 +98,13 @@ class NewsScraper:
                                     src = urljoin(url, src)
                                 
                                 if src.startswith(('http://', 'https://')):
-                                    # Skip known small/unwanted images
-                                    skip_patterns = ['logo', 'icon', 'avatar', 'profile', 'pixel', '1x1', 'tracking', 'analytics', 'ads']
-                                    if any(skip in src.lower() for skip in skip_patterns):
+                                    # Quick skip for obvious unwanted images
+                                    if any(skip in src.lower() for skip in ['logo', 'icon', 'pixel', '1x1']):
                                         continue
                                     
-                                    # Check dimensions if available
-                                    width = img.get('width')
-                                    height = img.get('height')
-                                    if width and height:
-                                        try:
-                                            if int(width) >= 200 and int(height) >= 150:
-                                                image_url = src
-                                                break
-                                        except:
-                                            pass
-                                    else:
-                                        # Check for common article image patterns
-                                        img_classes = img.get('class', [])
-                                        if isinstance(img_classes, list):
-                                            img_classes = ' '.join(img_classes)
+                                    # Take the first valid image for speed
+                                    image_url = src
+                                    break
                                         
                                         article_patterns = ['article', 'content', 'main', 'hero', 'featured', 'story']
                                         if any(pattern in img_classes.lower() for pattern in article_patterns):
@@ -1049,14 +1032,14 @@ class NewsScraper:
     def scrape_source_with_categories(self, url: str, source_name: str, target_articles: int = 20) -> List[Dict]:
         """Scrape a source and categorize articles into Indian and International with diverse categories"""
         try:
-            # Scrape more articles initially to have better selection
+            # Scrape articles with optimized approach
             all_articles = self.scrape_source(url, source_name)
             
-            # Extend scraping to get more articles if needed
-            if len(all_articles) < target_articles * 2:
-                # Try to get more articles from different sections
-                additional_articles = self.scrape_source(url, source_name)
-                all_articles.extend(additional_articles)
+            # Skip extended scraping to improve speed - rely on initial scraping
+            # if len(all_articles) < target_articles * 2:
+            #     # Try to get more articles from different sections
+            #     additional_articles = self.scrape_source(url, source_name)
+            #     all_articles.extend(additional_articles)
             
             # Remove duplicates based on title similarity
             unique_articles = []

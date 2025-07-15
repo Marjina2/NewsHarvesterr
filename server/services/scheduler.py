@@ -63,37 +63,50 @@ class NewsScraperScheduler:
                 logger.error("Failed to save articles to storage")
                 return
             
-            # Process pending articles for rephrasing
+            # Process pending articles for rephrasing (optimized batch processing)
             pending_articles = self.storage.get_pending_articles()
             logger.info(f"Found {len(pending_articles)} pending articles for rephrasing")
             
-            for article in pending_articles:
-                try:
-                    # Update status to processing
-                    self.storage.update_article_status(article['id'], 'processing')
-                    
-                    # Rephrase the article
-                    rephrased_title = self.rephraser.rephrase_headline(
-                        article['originalTitle'], 
-                        article['sourceName']
-                    )
-                    
-                    if rephrased_title:
-                        # Update with rephrased title
-                        self.storage.update_article_status(
-                            article['id'], 
-                            'completed', 
-                            rephrased_title
-                        )
-                        logger.info(f"Rephrased: {article['originalTitle'][:50]}...")
-                    else:
-                        # Mark as failed
-                        self.storage.update_article_status(article['id'], 'failed')
-                        logger.warning(f"Failed to rephrase: {article['originalTitle'][:50]}...")
+            # Process in smaller batches for better performance
+            batch_size = 10
+            processed_count = 0
+            
+            for i in range(0, len(pending_articles), batch_size):
+                batch = pending_articles[i:i + batch_size]
+                
+                for article in batch:
+                    try:
+                        # Update status to processing
+                        self.storage.update_article_status(article['id'], 'processing')
                         
-                except Exception as e:
-                    logger.error(f"Error processing article {article['id']}: {str(e)}")
-                    self.storage.update_article_status(article['id'], 'failed')
+                        # Rephrase the article
+                        rephrased_title = self.rephraser.rephrase_headline(
+                            article['originalTitle'], 
+                            article.get('sourceName', 'Unknown')
+                        )
+                        
+                        if rephrased_title:
+                            # Update with rephrased title
+                            self.storage.update_article_status(
+                                article['id'], 
+                                'completed', 
+                                rephrased_title
+                            )
+                            logger.info(f"Rephrased: {rephrased_title[:50]}...")
+                        else:
+                            # Mark as failed
+                            self.storage.update_article_status(article['id'], 'failed')
+                            logger.warning(f"Failed to rephrase: {article['originalTitle'][:50]}...")
+                        
+                        processed_count += 1
+                        
+                    except Exception as e:
+                        logger.error(f"Error processing article {article['id']}: {str(e)}")
+                        self.storage.update_article_status(article['id'], 'failed')
+                
+                # Add a small delay between batches to avoid overwhelming the API
+                if i + batch_size < len(pending_articles):
+                    time.sleep(0.5)
             
             # Update last run time in storage and local config
             self.storage.update_scraper_last_run()
@@ -101,7 +114,7 @@ class NewsScraperScheduler:
             config["last_run"] = datetime.now().isoformat()
             self.save_config(config)
             
-            logger.info(f"Completed job: {len(articles)} articles scraped, {len(pending_articles)} processed")
+            logger.info(f"Completed job: {len(articles)} articles scraped, {processed_count} processed")
             
         except Exception as e:
             logger.error(f"Error in scheduled job: {str(e)}")
