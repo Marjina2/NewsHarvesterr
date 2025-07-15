@@ -240,4 +240,4 @@ class Storage {
   }
 }
 
-export const storage = new DatabaseStorage();
+export const storage = new Storage();
