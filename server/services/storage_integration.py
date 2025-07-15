@@ -1,6 +1,7 @@
 import requests
 import json
 import logging
+import os
 from typing import List, Dict, Optional
 
 logging.basicConfig(level=logging.INFO)
@@ -9,11 +10,15 @@ logger = logging.getLogger(__name__)
 class StorageIntegration:
     def __init__(self, base_url: str = "http://localhost:5000"):
         self.base_url = base_url
+        self.headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {os.environ.get("MASTER_TOKEN", "")}'
+        }
         
     def get_active_sources(self) -> List[Dict]:
         """Get active news sources from the Node.js storage"""
         try:
-            response = requests.get(f"{self.base_url}/api/sources", timeout=10)
+            response = requests.get(f"{self.base_url}/api/sources", headers=self.headers, timeout=10)
             response.raise_for_status()
             sources = response.json()
             
@@ -70,6 +75,7 @@ class StorageIntegration:
                 response = requests.post(
                     f"{self.base_url}/api/articles",
                     json=article_data,
+                    headers=self.headers,
                     timeout=10
                 )
                 
