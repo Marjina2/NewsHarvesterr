@@ -42,6 +42,11 @@ export const scraperConfig = pgTable("scraper_config", {
   intervalMinutes: integer("interval_minutes").notNull().default(20),
   isActive: boolean("is_active").default(false),
   lastRunAt: timestamp("last_run_at"),
+  articlesPerSource: integer("articles_per_source").notNull().default(20),
+  indianArticlesPerSource: integer("indian_articles_per_source").notNull().default(10),
+  internationalArticlesPerSource: integer("international_articles_per_source").notNull().default(10),
+  extractFullContent: boolean("extract_full_content").notNull().default(true),
+  enableCategorization: boolean("enable_categorization").notNull().default(true),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
@@ -77,6 +82,11 @@ export const insertNewsArticleSchema = createInsertSchema(newsArticles).pick({
 export const updateScraperConfigSchema = createInsertSchema(scraperConfig).pick({
   intervalMinutes: true,
   isActive: true,
+  articlesPerSource: true,
+  indianArticlesPerSource: true,
+  internationalArticlesPerSource: true,
+  extractFullContent: true,
+  enableCategorization: true,
 });
 
 // Types

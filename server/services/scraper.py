@@ -41,12 +41,11 @@ class NewsScraper:
             article.download()
             article.parse()
             
-            # Skip NLP processing for speed - basic parsing is sufficient
-            # if len(article.text.strip()) < 500:  # If content seems short, try NLP
-            #     try:
-            #         article.nlp()
-            #     except:
-            #         pass
+            # Enable NLP processing for better content extraction
+            try:
+                article.nlp()
+            except:
+                pass  # Continue without NLP if it fails
 
             # Clean and format the content
             content = article.text.strip()

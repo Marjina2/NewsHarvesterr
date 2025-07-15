@@ -10,6 +10,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes: Latest modifications with dates
 
+### Enhanced Security & Configuration Rules - July 15, 2025
+- ✅ **Frontend Security Protection**: Disabled right-click, F12, Ctrl+Shift+I/J/C, and Ctrl+U to prevent unauthorized access
+- ✅ **Enhanced Scraper Configuration**: Added articlesPerSource, indianArticlesPerSource, internationalArticlesPerSource fields to Supabase
+- ✅ **Full Article Content Extraction**: Re-enabled NLP processing for complete article content (not just excerpts)
+- ✅ **Database Schema Enhanced**: Added extractFullContent and enableCategorization boolean flags to scraper config
+- ✅ **Active Scraper Running**: Successfully collecting 280+ articles with enhanced 20-per-source categorization
+- ✅ **AI Rephrasing Active**: Automatically rephrasing headlines as articles are collected
+
 ### Performance Optimization & Speed Improvements - July 15, 2025
 - ✅ **Optimized Scraper Speed**: Reduced article extraction timeout from 15s to 8s for faster processing
 - ✅ **Streamlined Image Processing**: Simplified image extraction to use only top 3 meta tag selectors
