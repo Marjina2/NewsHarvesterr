@@ -2,8 +2,8 @@ import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from "@shared/schema";
 
-// Use DATABASE_URL environment variable for database connection
-const databaseUrl = process.env.DATABASE_URL;
+// Use SUPABASE_URL environment variable for database connection
+const databaseUrl = process.env.SUPABASE_URL;
 
 let pool: Pool | null = null;
 let db: any = null;
@@ -22,7 +22,8 @@ if (databaseUrl) {
     db = null;
   }
 } else {
-  console.warn("DATABASE_URL environment variable is not set - using in-memory storage");
+  console.error("SUPABASE_URL environment variable is not set");
+  console.log("Available environment variables:", Object.keys(process.env).filter(key => key.includes('SUPABASE')));
 }
 
 export { pool, db };
