@@ -105,16 +105,6 @@ class NewsScraper:
                                     # Take the first valid image for speed
                                     image_url = src
                                     break
-                                        
-                                        article_patterns = ['article', 'content', 'main', 'hero', 'featured', 'story']
-                                        if any(pattern in img_classes.lower() for pattern in article_patterns):
-                                            image_url = src
-                                            break
-                                        
-                                        # If no specific class, check if it's a reasonably sized URL
-                                        if len(src) > 30 and not any(skip in src.lower() for skip in skip_patterns):
-                                            image_url = src
-                                            break
                     
                     # Method 4: Look for figure or picture elements
                     if not image_url:

@@ -1,15 +1,28 @@
-import { Pool } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
+import { Pool } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from "@shared/schema";
 
-// Use SUPABASE_URL environment variable for database connection
-const databaseUrl = process.env.SUPABASE_URL;
+// Use DATABASE_URL environment variable for database connection
+const databaseUrl = process.env.DATABASE_URL;
 
-if (!databaseUrl) {
-  throw new Error(
-    "SUPABASE_URL environment variable is required. Please set it to your Supabase PostgreSQL connection string.",
-  );
+let pool: Pool | null = null;
+let db: any = null;
+
+if (databaseUrl) {
+  try {
+    pool = new Pool({ 
+      connectionString: databaseUrl,
+      ssl: { rejectUnauthorized: false }
+    });
+    db = drizzle({ client: pool, schema });
+    console.log("Database connection established successfully");
+  } catch (error) {
+    console.error("Database connection failed:", error);
+    pool = null;
+    db = null;
+  }
+} else {
+  console.warn("DATABASE_URL environment variable is not set - using in-memory storage");
 }
 
-export const pool = new Pool({ connectionString: databaseUrl });
-export const db = drizzle({ client: pool, schema });
+export { pool, db };
