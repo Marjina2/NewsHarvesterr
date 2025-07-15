@@ -10,6 +10,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes: Latest modifications with dates
 
+### Enhanced Scraper for 240 Articles & Fixed Pagination - July 15, 2025
+- ✅ **Enhanced Scraper Algorithm**: Upgraded scraper to collect exactly 240 articles per run (20 per source)
+- ✅ **Balanced Article Distribution**: Each source provides 10 Indian + 10 international articles across diverse categories
+- ✅ **Fixed Pagination**: News display now shows proper pagination controls with page numbers
+- ✅ **Category Diversity**: Enhanced categorization ensures articles span technology, business, politics, sports, science, entertainment, and general
+- ✅ **Duplicate Prevention**: Improved duplicate detection across all sources for better article quality
+- ✅ **Full Article Scraping**: Each article includes complete content extraction with proper image handling
+
 ### Successful Migration to Replit Environment - July 15, 2025
 - ✅ **Migration Complete**: Successfully migrated from Replit Agent to standard Replit environment
 - ✅ **Database Integration**: Configured with both in-memory and database storage options  

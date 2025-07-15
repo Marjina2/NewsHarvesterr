@@ -36,14 +36,14 @@ export default function NewsDisplay() {
 
   // Get total articles count for pagination
   const { data: allArticlesData } = useQuery({
-    queryKey: ["/api/articles/all", 1],
+    queryKey: ["/api/stats"],
     queryFn: async () => {
-      const response = await fetch(`/api/news?limit=1000`); // Get a large number to count
+      const response = await fetch(`/api/stats`);
       if (!response.ok) {
-        throw new Error('Failed to fetch articles count');
+        throw new Error('Failed to fetch stats');
       }
       const data = await response.json();
-      return { total: data.length };
+      return { total: data.totalArticles };
     },
     select: (data: any) => ({ total: data.total }),
     staleTime: 60000,

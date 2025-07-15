@@ -1047,58 +1047,125 @@ class NewsScraper:
             return 'international'
 
     def scrape_source_with_categories(self, url: str, source_name: str, target_articles: int = 20) -> List[Dict]:
-        """Scrape a source and categorize articles into Indian and International"""
-        articles = self.scrape_source(url, source_name)
-
-        indian_articles = []
-        international_articles = []
-
-        for article in articles:
-            # Add category and region classification
-            category = self.categorize_article(article['title'], article.get('fullContent', ''))
-            region = self.detect_indian_content(article['title'], article.get('fullContent', ''), source_name)
-
-            article['category'] = category
-            article['region'] = region
-
-            if region == 'indian' and len(indian_articles) < 10:
-                indian_articles.append(article)
-            elif region == 'international' and len(international_articles) < 10:
-                international_articles.append(article)
-
-            # Stop if we have enough articles
-            if len(indian_articles) >= 10 and len(international_articles) >= 10:
+        """Scrape a source and categorize articles into Indian and International with diverse categories"""
+        try:
+            # Scrape more articles initially to have better selection
+            all_articles = self.scrape_source(url, source_name)
+            
+            # Extend scraping to get more articles if needed
+            if len(all_articles) < target_articles * 2:
+                # Try to get more articles from different sections
+                additional_articles = self.scrape_source(url, source_name)
+                all_articles.extend(additional_articles)
+            
+            # Remove duplicates based on title similarity
+            unique_articles = []
+            seen_titles = set()
+            for article in all_articles:
+                title_words = set(article['title'].lower().split())
+                is_duplicate = any(len(title_words.intersection(set(seen_title.split()))) > len(title_words) * 0.6 
+                                 for seen_title in seen_titles)
+                if not is_duplicate:
+                    unique_articles.append(article)
+                    seen_titles.add(article['title'].lower())
+            
+            # Categorize articles
+            categorized_articles = {
+                'indian': {
+                    'technology': [], 'business': [], 'politics': [], 'sports': [], 
+                    'science': [], 'entertainment': [], 'general': []
+                },
+                'international': {
+                    'technology': [], 'business': [], 'politics': [], 'sports': [], 
+                    'science': [], 'entertainment': [], 'general': []
+                }
+            }
+            
+            for article in unique_articles:
+                # Enhanced categorization
+                category = self.categorize_article(article['title'], article.get('fullContent', ''), source_name)
+                region = self.detect_indian_content(article['title'], article.get('fullContent', ''), source_name)
+                
+                article['category'] = category
+                article['region'] = region
+                
+                categorized_articles[region][category].append(article)
+            
+            # Select articles ensuring diversity: 10 Indian + 10 International with diverse categories
+            final_articles = []
+            
+            # Select 10 Indian articles across different categories
+            indian_articles = self._select_diverse_articles(categorized_articles['indian'], 10)
+            final_articles.extend(indian_articles)
+            
+            # Select 10 International articles across different categories
+            international_articles = self._select_diverse_articles(categorized_articles['international'], 10)
+            final_articles.extend(international_articles)
+            
+            # Log the distribution
+            category_count = {}
+            region_count = {}
+            for article in final_articles:
+                category = article.get('category', 'general')
+                region = article.get('region', 'international')
+                category_count[category] = category_count.get(category, 0) + 1
+                region_count[region] = region_count.get(region, 0) + 1
+            
+            logger.info(f"Scraped {len(final_articles)} articles from {source_name}")
+            logger.info(f"Region distribution: {region_count}")
+            logger.info(f"Category distribution: {category_count}")
+            
+            return final_articles[:target_articles]
+            
+        except Exception as e:
+            logger.error(f"Error scraping {source_name} with categories: {str(e)}")
+            return []
+    
+    def _select_diverse_articles(self, categorized_articles: Dict, target_count: int) -> List[Dict]:
+        """Select articles ensuring category diversity"""
+        selected = []
+        categories = ['technology', 'business', 'politics', 'sports', 'science', 'entertainment', 'general']
+        
+        # First, try to get 1-2 articles from each category
+        articles_per_category = max(1, target_count // len(categories))
+        
+        for category in categories:
+            articles = categorized_articles[category]
+            selected.extend(articles[:articles_per_category])
+            if len(selected) >= target_count:
                 break
-
-        # Combine and return up to target_articles
-        result = indian_articles + international_articles
-        return result[:target_articles]
+        
+        # If we still need more articles, fill from any available category
+        if len(selected) < target_count:
+            remaining = target_count - len(selected)
+            for category in categories:
+                if remaining <= 0:
+                    break
+                articles = categorized_articles[category]
+                # Skip articles already selected
+                available = [a for a in articles if a not in selected]
+                selected.extend(available[:remaining])
+                remaining = target_count - len(selected)
+        
+        return selected[:target_count]
 
     def scrape_all_sources(self, sources: List[Dict]) -> List[Dict]:
-        """Scrape all sources with balanced category distribution and duplicate prevention"""
+        """Scrape all sources with 240 articles total (20 per source: 10 Indian + 10 International)"""
         all_articles = []
         seen_titles = set()  # Track titles to prevent duplicates
         
-        # Target distribution: 10 articles per category
-        category_targets = {
-            'technology': 20,
-            'business': 20, 
-            'politics': 20,
-            'sports': 15,
-            'science': 15,
-            'entertainment': 15,
-            'general': 15
-        }
-        category_counts = {cat: 0 for cat in category_targets.keys()}
-
+        logger.info(f"Starting comprehensive scrape of {len(sources)} sources for 240 articles total")
+        
         for source in sources:
             if source.get('isActive', True):
                 logger.info(f"Scraping {source['name']} for categorized content")
-                articles = self.scrape_source(source['url'], source['name'])
+                
+                # Use enhanced scraping method to get exactly 20 articles per source
+                articles = self.scrape_source_with_categories(source['url'], source['name'], 20)
                 
                 processed_articles = []
                 for article in articles:
-                    # Enhanced duplicate detection
+                    # Enhanced duplicate detection across all sources
                     title_clean = article['title'].strip().lower()
                     # Create a more robust duplicate key using title and source
                     duplicate_key = f"{title_clean}_{source['name'].lower()}"
@@ -1106,34 +1173,30 @@ class NewsScraper:
                     if duplicate_key in seen_titles:
                         continue
                     
-                    # Add enhanced categorization
-                    category = self.categorize_article(
-                        article['title'], 
-                        article.get('fullContent', ''), 
-                        source['name']
-                    )
-                    region = self.detect_indian_content(
-                        article['title'], 
-                        article.get('fullContent', ''), 
-                        source['name']
-                    )
-                    
-                    article['category'] = category
-                    article['region'] = region
-                    
-                    # Only add if we haven't reached the target for this category
-                    if category_counts[category] < category_targets[category]:
-                        processed_articles.append(article)
-                        seen_titles.add(duplicate_key)
-                        category_counts[category] += 1
+                    # Add article to processed list
+                    processed_articles.append(article)
+                    seen_titles.add(duplicate_key)
                 
-                logger.info(f"Got {len(processed_articles)} unique articles from {source['name']}")
+                # Add processed articles to the main list
                 all_articles.extend(processed_articles)
-                time.sleep(1)  # Be respectful to servers
                 
-                # Log current category distribution
-                logger.info(f"Current category distribution: {category_counts}")
-
+                # Log progress
+                logger.info(f"Added {len(processed_articles)} unique articles from {source['name']}")
+                logger.info(f"Total articles collected so far: {len(all_articles)}")
+        
+        # Final statistics
+        category_counts = {}
+        region_counts = {}
+        for article in all_articles:
+            category = article.get('category', 'general')
+            region = article.get('region', 'international')
+            category_counts[category] = category_counts.get(category, 0) + 1
+            region_counts[region] = region_counts.get(region, 0) + 1
+        
+        logger.info(f"Final scrape results: {len(all_articles)} articles")
+        logger.info(f"Category distribution: {category_counts}")
+        logger.info(f"Region distribution: {region_counts}")
+        
         return all_articles
 
 def save_articles_to_json(articles: List[Dict], filename: str = "raw_news.json"):
