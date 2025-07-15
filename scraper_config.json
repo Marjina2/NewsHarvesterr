@@ -1,5 +1,5 @@
 {
   "interval_minutes": 20,
-  "is_active": true,
+  "is_active": false,
   "last_run": null
 }

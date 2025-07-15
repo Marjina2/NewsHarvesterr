@@ -5,6 +5,18 @@ import { NewsStats } from "@shared/schema";
 export default function StatisticsPanel() {
   const { data: stats, isLoading } = useQuery<NewsStats>({
     queryKey: ["/api/stats"],
+    queryFn: async () => {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`/api/stats`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch stats');
+      }
+      return response.json();
+    },
     refetchInterval: 60000, // Refresh every minute
   });
 
@@ -37,13 +49,13 @@ export default function StatisticsPanel() {
         <div className="grid grid-cols-2 gap-4">
           <div className="text-center">
             <div className="text-2xl font-bold text-blue-500">
-              {stats?.totalArticles || 0}
+              {stats?.totalArticles ? parseInt(stats.totalArticles.toString()) : 0}
             </div>
             <div className="text-xs text-slate-500">Total Articles</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-green-500">
-              {stats?.todayArticles || 0}
+              {stats?.todayArticles ? parseInt(stats.todayArticles.toString()) : 0}
             </div>
             <div className="text-xs text-slate-500">Today</div>
           </div>
@@ -55,7 +67,7 @@ export default function StatisticsPanel() {
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-purple-500">
-              {stats?.avgPerHour || 0}
+              {stats?.avgPerHour ? parseFloat(stats.avgPerHour.toString()).toFixed(1) : 0}
             </div>
             <div className="text-xs text-slate-500">Avg/Hour</div>
           </div>

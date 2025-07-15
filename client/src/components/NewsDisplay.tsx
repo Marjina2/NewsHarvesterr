@@ -38,14 +38,18 @@ export default function NewsDisplay() {
   const { data: allArticlesData } = useQuery({
     queryKey: ["/api/stats"],
     queryFn: async () => {
-      const response = await fetch(`/api/stats`);
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`/api/stats`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch stats');
       }
       const data = await response.json();
-      return { total: data.totalArticles };
+      return { total: parseInt(data.totalArticles) };
     },
-    select: (data: any) => ({ total: data.total }),
     staleTime: 60000,
   });
 
@@ -141,7 +145,7 @@ export default function NewsDisplay() {
   };
 
   const totalArticles = allArticlesData?.total || 0;
-  const totalPages = Math.ceil(totalArticles / articlesPerPage);
+  const totalPages = Math.max(1, Math.ceil(totalArticles / articlesPerPage));
 
   if (isLoading) {
     return (
@@ -220,7 +224,7 @@ export default function NewsDisplay() {
       </div>
 
       {/* Pagination Controls */}
-      {totalPages > 1 && (
+      {totalArticles > articlesPerPage && (
         <div className="flex items-center justify-between mb-6">
           <div className="text-sm text-gray-500">
             Page {currentPage} of {totalPages} ({totalArticles} total articles)
