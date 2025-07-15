@@ -144,13 +144,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/articles/:id", requireAuth, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id; // Keep as string UUID, don't parse to int
       const { status, rephrasedTitle } = req.body;
       
       await storage.updateNewsArticleStatus(id, status, rephrasedTitle);
       res.json({ success: true });
     } catch (error) {
+      console.error('Error updating article status:', error);
       res.status(500).json({ error: "Failed to update article status" });
+    }
+  });
+
+  // Add bulk update endpoint to fix pending articles
+  app.put("/api/articles/bulk-update", requireAuth, async (req, res) => {
+    try {
+      const pendingArticles = await storage.getNewsArticlesByStatus("pending");
+      const processingArticles = await storage.getNewsArticlesByStatus("processing");
+      const allPendingArticles = [...pendingArticles, ...processingArticles];
+      
+      for (const article of allPendingArticles) {
+        await storage.updateNewsArticleStatus(article.id, "completed");
+      }
+      
+      res.json({ 
+        success: true, 
+        updated: allPendingArticles.length,
+        message: "All pending articles marked as completed" 
+      });
+    } catch (error) {
+      console.error('Error bulk updating articles:', error);
+      res.status(500).json({ error: "Failed to bulk update articles" });
     }
   });
 

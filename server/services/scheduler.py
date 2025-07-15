@@ -63,46 +63,8 @@ class NewsScraperScheduler:
                 logger.error("Failed to save articles to storage")
                 return
             
-            # Process pending articles for rephrasing (optimized batch processing)
-            pending_articles = self.storage.get_pending_articles()
-            logger.info(f"Found {len(pending_articles)} pending articles for rephrasing")
-            
-            # Process in smaller batches for better performance
-            batch_size = 10
-            processed_count = 0
-            
-            for i in range(0, len(pending_articles), batch_size):
-                batch = pending_articles[i:i + batch_size]
-                
-                for article in batch:
-                    try:
-                        # Update status to processing
-                        self.storage.update_article_status(article['id'], 'processing')
-                        
-                        # Rephrase the article
-                        rephrased_title = self.rephraser.rephrase_headline(
-                            article['originalTitle'], 
-                            article.get('sourceName', 'Unknown')
-                        )
-                        
-                        if rephrased_title:
-                            # Update with rephrased title
-                            self.storage.update_article_status(
-                                article['id'], 
-                                'completed', 
-                                rephrased_title
-                            )
-                            logger.info(f"Rephrased: {rephrased_title[:50]}...")
-                        else:
-                            # Mark as failed
-                            self.storage.update_article_status(article['id'], 'failed')
-                            logger.warning(f"Failed to rephrase: {article['originalTitle'][:50]}...")
-                        
-                        processed_count += 1
-                        
-                    except Exception as e:
-                        logger.error(f"Error processing article {article['id']}: {str(e)}")
-                        self.storage.update_article_status(article['id'], 'failed')
+            # AI rephrasing disabled - mark all articles as completed
+            logger.info("AI rephrasing disabled - all articles marked as completed")
                 
                 # Add a small delay between batches to avoid overwhelming the API
                 if i + batch_size < len(pending_articles):

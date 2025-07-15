@@ -315,7 +315,7 @@ class Storage implements IStorage {
     try {
       const [newArticle] = await db.insert(newsArticles).values({
         ...article,
-        status: "pending",
+        status: "completed", // AI rephrasing disabled
         scrapedAt: new Date(),
       }).returning();
       return newArticle;
@@ -325,7 +325,7 @@ class Storage implements IStorage {
     }
   }
 
-  async updateNewsArticleStatus(id: number, status: string, rephrasedTitle?: string): Promise<void> {
+  async updateNewsArticleStatus(id: string | number, status: string, rephrasedTitle?: string): Promise<void> {
     if (!this.useDatabase) {
       return this.memoryStorage.updateNewsArticleStatus(id, status, rephrasedTitle);
     }
@@ -339,7 +339,7 @@ class Storage implements IStorage {
 
       await db.update(newsArticles)
         .set(updateData)
-        .where(eq(newsArticles.id, id));
+        .where(eq(newsArticles.id, String(id))); // Ensure UUID is string
     } catch (error) {
       console.error("Error updating news article status:", error);
       throw error;
