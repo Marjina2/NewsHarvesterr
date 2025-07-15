@@ -71,6 +71,7 @@ export const insertNewsArticleSchema = createInsertSchema(newsArticles).pick({
   imageUrl: z.string().optional().nullable(),
   category: z.string().optional(),
   region: z.string().optional(),
+  publishedAt: z.union([z.string(), z.date()]).optional().nullable(),
 });
 
 export const updateScraperConfigSchema = createInsertSchema(scraperConfig).pick({

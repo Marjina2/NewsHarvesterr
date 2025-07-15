@@ -59,13 +59,23 @@ class StorageIntegration:
                 if image_url and not image_url.startswith(('http://', 'https://')):
                     image_url = None
                 
+                # Convert publishedAt to ISO string if it's a date
+                published_at = article.get('publishedAt')
+                if published_at and hasattr(published_at, 'isoformat'):
+                    published_at = published_at.isoformat()
+                elif published_at and isinstance(published_at, str):
+                    # Already a string, keep as is
+                    pass
+                else:
+                    published_at = None
+                
                 article_data = {
                     'sourceName': article['source'],
                     'originalTitle': title,
                     'originalUrl': url,
                     'fullContent': article.get('fullContent'),
                     'excerpt': article.get('excerpt'),
-                    'publishedAt': article.get('publishedAt'),
+                    'publishedAt': published_at,
                     'imageUrl': image_url,
                     'author': article.get('author'),
                     'category': article.get('category', 'general'),
@@ -98,7 +108,7 @@ class StorageIntegration:
     def get_pending_articles(self) -> List[Dict]:
         """Get articles that need AI rephrasing"""
         try:
-            response = requests.get(f"{self.base_url}/api/articles/pending", timeout=10)
+            response = requests.get(f"{self.base_url}/api/articles/pending", headers=self.headers, timeout=10)
             response.raise_for_status()
             return response.json()
             
@@ -116,6 +126,7 @@ class StorageIntegration:
             response = requests.put(
                 f"{self.base_url}/api/articles/{article_id}",
                 json=data,
+                headers=self.headers,
                 timeout=10
             )
             response.raise_for_status()
@@ -130,6 +141,7 @@ class StorageIntegration:
         try:
             response = requests.post(
                 f"{self.base_url}/api/scraper/last-run",
+                headers=self.headers,
                 timeout=10
             )
             response.raise_for_status()

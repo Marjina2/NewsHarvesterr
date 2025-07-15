@@ -108,7 +108,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // News Articles endpoints (protected)
-  app.get("/api/news", requireAuth, async (req, res) => {
+  app.get("/api/news", async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
