@@ -12,7 +12,7 @@ if (databaseUrl) {
   try {
     pool = new Pool({ 
       connectionString: databaseUrl,
-      ssl: { rejectUnauthorized: false }
+      ssl: databaseUrl.includes('localhost') ? false : { rejectUnauthorized: false }
     });
     db = drizzle({ client: pool, schema });
     console.log("Database connection established successfully");
