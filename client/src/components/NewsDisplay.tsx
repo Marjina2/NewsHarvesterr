@@ -162,7 +162,7 @@ export default function NewsDisplay() {
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Newspaper className="h-6 w-6" />
-            News Articles ({filteredArticles.length})
+            News Articles ({filteredArticles.length} of {totalArticles} total)
           </h2>
           <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isFetching}>
             <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
@@ -224,7 +224,7 @@ export default function NewsDisplay() {
       </div>
 
       {/* Pagination Controls */}
-      {totalArticles > articlesPerPage && (
+      {totalPages > 1 && (
         <div className="flex items-center justify-between mb-6">
           <div className="text-sm text-gray-500">
             Page {currentPage} of {totalPages} ({totalArticles} total articles)
