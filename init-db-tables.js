@@ -64,6 +64,15 @@ async function createTables() {
       );
     `);
     
+    // Add missing columns if they don't exist
+    await pool.query(`
+      ALTER TABLE scraper_config 
+      ADD COLUMN IF NOT EXISTS indian_articles_per_source INTEGER NOT NULL DEFAULT 10,
+      ADD COLUMN IF NOT EXISTS international_articles_per_source INTEGER NOT NULL DEFAULT 10,
+      ADD COLUMN IF NOT EXISTS extract_full_content BOOLEAN NOT NULL DEFAULT true,
+      ADD COLUMN IF NOT EXISTS enable_categorization BOOLEAN NOT NULL DEFAULT true;
+    `);
+    
     // Create indexes
     await pool.query(`
       CREATE INDEX IF NOT EXISTS scraped_at_idx ON news_articles(scraped_at);
