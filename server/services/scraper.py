@@ -30,26 +30,32 @@ class NewsScraper:
                     'author': None
                 }
 
-            # Optimized article extraction with faster configuration
+            # Enhanced article extraction with better content parsing
             article = Article(url)
-            article.config.request_timeout = 8  # Reduced timeout for faster processing
+            article.config.request_timeout = 12  # Increased timeout for better content extraction
             article.config.browser_user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            article.config.follow_meta_refresh = False  # Disable for speed
-            article.config.fetch_images = False  # Skip images for faster processing
+            article.config.follow_meta_refresh = True  # Enable for better content
+            article.config.fetch_images = True  # Enable for better extraction
             article.config.memoize_articles = False  # Disable caching for memory efficiency
             
             article.download()
-            article.parse()
-            
-            # Enable NLP processing for better content extraction
-            try:
-                article.nlp()
-            except:
-                pass  # Continue without NLP if it fails
+            if article.html:
+                article.parse()
+                
+                # Enable NLP processing for better content extraction
+                try:
+                    article.nlp()
+                except:
+                    pass  # Continue without NLP if it fails
 
-            # Clean and format the content
-            content = article.text.strip()
-            excerpt = content[:300] + "..." if len(content) > 300 else content  # Shorter excerpt
+                # Clean and format the content
+                content = article.text.strip() if article.text else ""
+                
+                # If newspaper3k fails, try BeautifulSoup fallback
+                if not content or len(content) < 100:
+                    content = self._extract_content_fallback(url, article.html)
+                
+                excerpt = content[:400] + "..." if len(content) > 400 else content
 
             # Extract publish date
             publish_date = None
@@ -158,12 +164,20 @@ class NewsScraper:
                     image_url = "https://via.placeholder.com/400x250/6b7280/ffffff?text=News+Article"
 
             return {
-                'fullContent': content if content and len(content) > 50 else None,
-                'excerpt': excerpt if excerpt and len(excerpt) > 20 else None,
-                'publishedAt': publish_date,
-                'imageUrl': image_url,
-                'author': ', '.join(article.authors) if article.authors else None
-            }
+                    'fullContent': content if content and len(content) > 100 else None,
+                    'excerpt': excerpt if excerpt and len(excerpt) > 50 else None,
+                    'publishedAt': publish_date,
+                    'imageUrl': image_url,
+                    'author': ', '.join(article.authors) if article.authors else None
+                }
+            else:
+                return {
+                    'fullContent': None,
+                    'excerpt': None,
+                    'publishedAt': None,
+                    'imageUrl': None,
+                    'author': None
+                }
         except Exception as e:
             logger.warning(f"Failed to extract full article from {url}: {str(e)}")
             return {
@@ -173,6 +187,49 @@ class NewsScraper:
                 'imageUrl': None,
                 'author': None
             }
+
+    def _extract_content_fallback(self, url: str, html: str) -> str:
+        """Fallback content extraction using BeautifulSoup"""
+        try:
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(html, 'html.parser')
+            
+            # Remove unwanted elements
+            for element in soup(['script', 'style', 'nav', 'header', 'footer', 'aside', 'form']):
+                element.decompose()
+            
+            # Try common article selectors
+            content_selectors = [
+                'article',
+                '[role="main"]',
+                '.article-content',
+                '.story-content',
+                '.post-content',
+                '.content',
+                '.entry-content',
+                '.article-body',
+                '.story-body',
+                'main'
+            ]
+            
+            content = ""
+            for selector in content_selectors:
+                elements = soup.select(selector)
+                if elements:
+                    content = ' '.join([elem.get_text(strip=True) for elem in elements])
+                    if len(content) > 200:  # Found substantial content
+                        break
+            
+            # If still no good content, try paragraph extraction
+            if not content or len(content) < 200:
+                paragraphs = soup.find_all('p')
+                content = ' '.join([p.get_text(strip=True) for p in paragraphs if len(p.get_text(strip=True)) > 50])
+            
+            return content.strip()
+            
+        except Exception as e:
+            logger.warning(f"Fallback content extraction failed for {url}: {str(e)}")
+            return ""
 
     def scrape_bbc_news(self, url: str) -> List[Dict]:
         """Scrape BBC News headlines"""
@@ -1021,14 +1078,15 @@ class NewsScraper:
     def scrape_source_with_categories(self, url: str, source_name: str, target_articles: int = 20) -> List[Dict]:
         """Scrape a source and categorize articles into Indian and International with diverse categories"""
         try:
-            # Scrape articles with optimized approach
+            # Scrape articles with full content extraction
             all_articles = self.scrape_source(url, source_name)
             
-            # Skip extended scraping to improve speed - rely on initial scraping
-            # if len(all_articles) < target_articles * 2:
-            #     # Try to get more articles from different sections
-            #     additional_articles = self.scrape_source(url, source_name)
-            #     all_articles.extend(additional_articles)
+            # Process each article to ensure full content extraction
+            for article in all_articles:
+                if article.get('url') and not article.get('fullContent'):
+                    logger.info(f"Extracting full content for: {article['title'][:50]}...")
+                    content_data = self.extract_full_article(article['url'])
+                    article.update(content_data)
             
             # Remove duplicates based on title similarity
             unique_articles = []
