@@ -25,7 +25,12 @@ export default function NewsDisplay() {
       queryFn: async () => {
         const limit = articlesPerPage;
         const offset = (currentPage - 1) * articlesPerPage;
-        const response = await fetch(`/api/news?limit=${limit}&offset=${offset}`);
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(`/api/news?limit=${limit}&offset=${offset}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
         if (!response.ok) {
           throw new Error('Failed to fetch news articles');
         }
@@ -111,7 +116,12 @@ export default function NewsDisplay() {
 
   const handleDownloadJSON = async (articleId: number) => {
     try {
-      const response = await fetch(`/api/articles/${articleId}/json`);
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`/api/articles/${articleId}/json`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const data = await response.json();
 
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
