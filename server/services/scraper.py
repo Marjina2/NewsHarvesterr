@@ -14,9 +14,32 @@ logger = logging.getLogger(__name__)
 class NewsScraper:
     def __init__(self):
         self.session = requests.Session()
+        # Enhanced headers to bypass bot detection
         self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Cache-Control': 'max-age=0'
         })
+        
+        # Add retry strategy
+        from requests.adapters import HTTPAdapter
+        from urllib3.util.retry import Retry
+        
+        retry_strategy = Retry(
+            total=3,
+            backoff_factor=1,
+            status_forcelist=[429, 500, 502, 503, 504],
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
 
     def extract_full_article(self, url: str) -> Dict:
         """Extract complete article content including embedded media links"""
@@ -406,54 +429,75 @@ class NewsScraper:
     def scrape_reuters(self, url: str) -> List[Dict]:
         """Scrape Reuters headlines"""
         try:
-            # Try RSS feed first as it's more reliable
-            rss_url = "https://feeds.reuters.com/reuters/topNews"
-            response = self.session.get(rss_url, timeout=10)
+            # Direct web scraping with enhanced headers
+            response = self.session.get(url, timeout=15, allow_redirects=True)
             response.raise_for_status()
 
-            soup = BeautifulSoup(response.content, 'xml')
+            soup = BeautifulSoup(response.content, 'html.parser')
             articles = []
 
-            # Parse RSS feed - get up to 25 items
-            items = soup.find_all('item')[:25]
+            # Multiple selectors for Reuters articles
+            article_selectors = [
+                'div[data-testid="ArticleCard"]',
+                'article',
+                '.story-card',
+                '.media-story-card__headline__eqhp9',
+                '.media-story-card__body__3tRWy',
+                '[data-testid="Heading"]',
+                '.media-story-card',
+                'h3 a',
+                'h2 a',
+                'h1 a'
+            ]
 
-            for item in items:
-                title_elem = item.find('title')
-                link_elem = item.find('link')
+            for selector in article_selectors:
+                elements = soup.select(selector)
+                if elements:
+                    for element in elements[:30]:  # Get more elements for better filtering
+                        title_elem = element.find('h3') or element.find('h2') or element.find('h1') or element.find('a')
+                        if title_elem:
+                            title = title_elem.get_text(strip=True)
+                            if len(title) > 20:
+                                # Find the article URL
+                                link_elem = element.find('a') or title_elem
+                                if link_elem and link_elem.get('href'):
+                                    article_url = link_elem.get('href')
+                                    if article_url.startswith('/'):
+                                        article_url = urljoin(url, article_url)
+                                    elif not article_url.startswith(('http://', 'https://')):
+                                        continue
 
-                if title_elem and title_elem.text:
-                    title = title_elem.text.strip()
-                    if len(title) > 20:
-                        article_url = link_elem.text.strip() if link_elem else ""
+                                    # Extract full article content
+                                    article_details = self.extract_full_article(article_url)
 
-                        # Extract full article content
-                        article_details = self.extract_full_article(article_url) if article_url else {}
+                                    articles.append({
+                                        'title': title,
+                                        'url': article_url,
+                                        'source': 'Reuters',
+                                        **article_details
+                                    })
 
-                        articles.append({
-                            'title': title,
-                            'url': article_url,
-                            'source': 'Reuters',
-                            **article_details
-                        })
+                    if articles:
+                        break
 
             return articles
 
         except Exception as e:
-            logger.error(f"Error scraping Reuters RSS: {str(e)}")
+            logger.error(f"Error scraping Reuters: {str(e)}")
             # Fallback to generic scraping
             return self.scrape_generic_news(url, "Reuters")
 
     def scrape_hackernews(self, url: str) -> List[Dict]:
         """Scrape Hacker News headlines"""
         try:
-            response = self.session.get(url, timeout=10)
+            response = self.session.get(url, timeout=15, allow_redirects=True)
             response.raise_for_status()
 
             soup = BeautifulSoup(response.content, 'html.parser')
             articles = []
 
             # Hacker News specific selectors
-            story_rows = soup.find_all('tr', class_='athing')[:10]
+            story_rows = soup.find_all('tr', class_='athing')[:30]
 
             for story in story_rows:
                 title_elem = story.find('span', class_='titleline')
@@ -468,10 +512,14 @@ class NewsScraper:
                             article_url = urljoin(url, article_url)
 
                         if title and len(title) > 20:
+                            # Extract full article content
+                            article_details = self.extract_full_article(article_url) if article_url else {}
+
                             articles.append({
                                 'title': title,
                                 'url': article_url,
-                                'source': 'Hacker News'
+                                'source': 'Hacker News',
+                                **article_details
                             })
 
             return articles
@@ -481,48 +529,92 @@ class NewsScraper:
             return []
 
     def scrape_generic_news(self, url: str, source_name: str) -> List[Dict]:
-        """Generic news scraper for other sources"""
+        """Enhanced generic news scraper for other sources"""
         try:
-            response = self.session.get(url, timeout=10)
+            # Use random delay to avoid rate limiting
+            import random
+            time.sleep(random.uniform(0.5, 2.0))
+            
+            response = self.session.get(url, timeout=15, allow_redirects=True)
             response.raise_for_status()
 
             soup = BeautifulSoup(response.content, 'html.parser')
             articles = []
 
-            # Generic selectors for headlines
-            headline_selectors = [
+            # Enhanced selectors for better coverage
+            selectors = [
+                # Article containers
+                'article a',
+                '.article a',
+                '.story a',
+                '.post a',
+                '.entry a',
+                '.news-item a',
+                '.story-card a',
+                '.article-card a',
+                
+                # Direct headline selectors
+                'h1 a', 'h2 a', 'h3 a', 'h4 a',
+                '.headline a', '.title a', '.article-title a',
+                '.story-headline a', '.news-title a',
+                '.entry-title a', '.post-title a',
+                
+                # Tech-specific selectors
+                '.post-title a', '.story-title a',
+                
+                # Generic content selectors
+                '[data-testid*="headline"] a',
+                '[data-testid*="title"] a',
+                '[class*="headline"] a',
+                '[class*="title"] a',
+                '[class*="story"] a',
+                
+                # Fallback for standalone headlines
                 'h1', 'h2', 'h3',
                 '[class*="headline"]',
                 '[class*="title"]',
-                '[class*="story"]',
-                'article h1', 'article h2', 'article h3'
+                '[class*="story"]'
             ]
 
-            for selector in headline_selectors:
-                headlines = soup.select(selector)
-                for headline in headlines[:10]:
-                    title = headline.get_text(strip=True)
-                    if title and len(title) > 20:
-                        link_element = headline.find('a') or headline.find_parent('a')
+            for selector in selectors:
+                elements = soup.select(selector)
+                if elements:
+                    for element in elements[:40]:  # Increased limit for better results
+                        title = ""
                         article_url = ""
-                        if link_element:
-                            article_url = urljoin(url, link_element.get('href', ''))
+                        
+                        if element.name == 'a':
+                            title = element.get_text(strip=True)
+                            article_url = element.get('href', '')
+                        else:
+                            title = element.get_text(strip=True)
+                            # Find associated link
+                            link_elem = element.find('a') or element.find_parent('a')
+                            if link_elem:
+                                article_url = link_elem.get('href', '')
+                                    
+                        if len(title) > 20 and article_url:
+                            # Normalize URL
+                            if article_url.startswith('/'):
+                                article_url = urljoin(url, article_url)
+                            elif not article_url.startswith(('http://', 'https://')):
+                                continue
 
-                        # Extract full article content
-                        article_details = self.extract_full_article(article_url) if article_url else {}
+                            # Extract full article content
+                            article_details = self.extract_full_article(article_url)
 
-                        articles.append({
-                            'title': title,
-                            'url': article_url,
-                            'source': source_name,
-                            **article_details
-                        })
+                            articles.append({
+                                'title': title,
+                                'url': article_url,
+                                'source': source_name,
+                                **article_details
+                            })
 
-                        if len(articles) >= 10:
-                            break
+                            if len(articles) >= 30:  # Increased to get more articles
+                                break
 
-                if len(articles) >= 10:
-                    break
+                    if len(articles) >= 30:
+                        break
 
             return articles
 
@@ -1329,11 +1421,12 @@ class NewsScraper:
             logger.info(f"Region distribution: {region_count}")
             logger.info(f"Category distribution: {category_count}")
             
-            # FINAL VALIDATION: Must return exactly the target number of articles
-            if len(validated_articles) != target_articles:
+            # ADAPTIVE VALIDATION: Return what we have, prioritizing quality over quantity
+            if len(validated_articles) < target_articles:
                 logger.warning(f"Could not meet strict requirement of {target_articles} articles, returning {len(validated_articles)}")
             
-            return validated_articles[:target_articles]
+            # Return all validated articles (may be less than target if source can't provide enough)
+            return validated_articles
             
         except Exception as e:
             logger.error(f"Error scraping {source_name} with categories: {str(e)}")
