@@ -19,7 +19,7 @@ class NewsScraper:
         })
 
     def extract_full_article(self, url: str) -> Dict:
-        """Extract full article content using newspaper3k with optimized performance"""
+        """Extract complete article content including embedded media links"""
         try:
             if not url or url.startswith('#') or url.startswith('javascript:') or not url.startswith(('http://', 'https://')):
                 return {
@@ -30,13 +30,13 @@ class NewsScraper:
                     'author': None
                 }
 
-            # Enhanced article extraction with better content parsing
+            # Enhanced article extraction with comprehensive content parsing
             article = Article(url)
-            article.config.request_timeout = 12  # Increased timeout for better content extraction
+            article.config.request_timeout = 15  # Increased timeout for complete extraction
             article.config.browser_user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            article.config.follow_meta_refresh = True  # Enable for better content
-            article.config.fetch_images = True  # Enable for better extraction
-            article.config.memoize_articles = False  # Disable caching for memory efficiency
+            article.config.follow_meta_refresh = True
+            article.config.fetch_images = True
+            article.config.memoize_articles = False
             
             article.download()
             if article.html:
@@ -48,14 +48,24 @@ class NewsScraper:
                 except:
                     pass  # Continue without NLP if it fails
 
-                # Clean and format the content
+                # Extract complete content with embedded media handling
                 content = article.text.strip() if article.text else ""
                 
-                # If newspaper3k fails, try BeautifulSoup fallback
+                # Enhanced content extraction with media link preservation
+                if not content or len(content) < 200:
+                    content = self._extract_complete_content_with_media(url, article.html)
+                
+                # Additional enhancement: Extract and preserve embedded media URLs
+                if article.html and content:
+                    media_content = self._extract_media_links(article.html, url)
+                    if media_content:
+                        content = content + "\n\n" + media_content
+                
+                # If still insufficient, try newspaper3k fallback
                 if not content or len(content) < 100:
                     content = self._extract_content_fallback(url, article.html)
                 
-                excerpt = content[:400] + "..." if len(content) > 400 else content
+                excerpt = content[:500] + "..." if len(content) > 500 else content
 
             # Extract publish date
             publish_date = None
@@ -232,6 +242,126 @@ class NewsScraper:
         except Exception as e:
             logger.warning(f"Fallback content extraction failed for {url}: {str(e)}")
             return ""
+
+    def _extract_media_links(self, html: str, base_url: str) -> str:
+        """Extract media links and embedded content from HTML"""
+        try:
+            from bs4 import BeautifulSoup
+            from urllib.parse import urljoin
+            
+            soup = BeautifulSoup(html, 'html.parser')
+            media_links = []
+            
+            # Extract image links
+            for img in soup.find_all('img', src=True):
+                src = img.get('src')
+                if src:
+                    if src.startswith('//'):
+                        src = 'https:' + src
+                    elif src.startswith('/'):
+                        src = urljoin(base_url, src)
+                    
+                    if src.startswith(('http://', 'https://')):
+                        alt_text = img.get('alt', 'Image')
+                        media_links.append(f"[IMAGE: {alt_text}] {src}")
+            
+            # Extract video links
+            for video in soup.find_all('video', src=True):
+                src = video.get('src')
+                if src:
+                    if src.startswith('//'):
+                        src = 'https:' + src
+                    elif src.startswith('/'):
+                        src = urljoin(base_url, src)
+                    
+                    if src.startswith(('http://', 'https://')):
+                        media_links.append(f"[VIDEO] {src}")
+            
+            # Extract iframe embeds (YouTube, Twitter, etc.)
+            for iframe in soup.find_all('iframe', src=True):
+                src = iframe.get('src')
+                if src and ('youtube' in src or 'twitter' in src or 'instagram' in src):
+                    media_links.append(f"[EMBEDDED] {src}")
+            
+            return '\n'.join(media_links) if media_links else ""
+            
+        except Exception as e:
+            logger.warning(f"Media extraction failed: {str(e)}")
+            return ""
+
+    def _extract_complete_content_with_media(self, url: str, html: str) -> str:
+        """Enhanced content extraction preserving media links and embedded content"""
+        try:
+            from bs4 import BeautifulSoup
+            from urllib.parse import urljoin
+            
+            soup = BeautifulSoup(html, 'html.parser')
+            
+            # Remove unwanted elements but preserve media containers
+            for element in soup(['script', 'style', 'nav', 'header', 'footer', 'aside', 'form', 'ads']):
+                element.decompose()
+            
+            # Try enhanced article selectors
+            content_selectors = [
+                'article',
+                '[role="main"]',
+                '.article-content',
+                '.post-content',
+                '.entry-content',
+                '.content',
+                '.story-body',
+                '.article-body',
+                '.article-text',
+                '.post-body',
+                'main'
+            ]
+            
+            content_parts = []
+            for selector in content_selectors:
+                element = soup.select_one(selector)
+                if element:
+                    # Extract text with media link preservation
+                    for child in element.descendants:
+                        if child.name == 'p':
+                            text = child.get_text(strip=True)
+                            if text and len(text) > 20:
+                                content_parts.append(text)
+                        elif child.name == 'img' and child.get('src'):
+                            img_src = child.get('src')
+                            if img_src.startswith('//'):
+                                img_src = 'https:' + img_src
+                            elif img_src.startswith('/'):
+                                img_src = urljoin(url, img_src)
+                            
+                            if img_src.startswith(('http://', 'https://')):
+                                alt_text = child.get('alt', 'Image')
+                                content_parts.append(f"[IMAGE: {alt_text}] {img_src}")
+                        elif child.name == 'video' and child.get('src'):
+                            video_src = child.get('src')
+                            if video_src.startswith('//'):
+                                video_src = 'https:' + video_src
+                            elif video_src.startswith('/'):
+                                video_src = urljoin(url, video_src)
+                            
+                            if video_src.startswith(('http://', 'https://')):
+                                content_parts.append(f"[VIDEO] {video_src}")
+                        elif child.name == 'iframe' and child.get('src'):
+                            iframe_src = child.get('src')
+                            if 'youtube' in iframe_src or 'twitter' in iframe_src or 'instagram' in iframe_src:
+                                content_parts.append(f"[EMBEDDED] {iframe_src}")
+                    
+                    if content_parts:
+                        break
+            
+            # Fallback to comprehensive text extraction
+            if not content_parts:
+                return self._extract_content_fallback(url, html)
+            
+            return '\n\n'.join(content_parts) if content_parts else ""
+            
+        except Exception as e:
+            logger.warning(f"Enhanced content extraction failed: {str(e)}")
+            return self._extract_content_fallback(url, html)
 
     def scrape_bbc_news(self, url: str) -> List[Dict]:
         """Scrape BBC News headlines"""
