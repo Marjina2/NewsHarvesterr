@@ -23,9 +23,16 @@ if (databaseUrl) {
 
     db = drizzle({ client: pool, schema });
 
-    // Test the connection
-    await pool.query('SELECT 1');
-    console.log("Database connection established successfully");
+    // Test the connection in a non-blocking way
+    pool.query('SELECT 1').then(() => {
+      console.log("Database connection established successfully");
+    }).catch((error) => {
+      console.error("Database connection failed:", error.message);
+      console.log("Falling back to in-memory storage");
+      pool = null;
+      db = null;
+    });
+
   } catch (error) {
     console.error("Database connection failed:", error.message);
     pool = null;
