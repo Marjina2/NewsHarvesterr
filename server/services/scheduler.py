@@ -65,10 +65,7 @@ class NewsScraperScheduler:
             
             # AI rephrasing disabled - mark all articles as completed
             logger.info("AI rephrasing disabled - all articles marked as completed")
-                
-                # Add a small delay between batches to avoid overwhelming the API
-                if i + batch_size < len(pending_articles):
-                    time.sleep(0.5)
+            processed_count = len(articles)  # All articles are processed since no AI rephrasing
             
             # Update last run time in storage and local config
             self.storage.update_scraper_last_run()

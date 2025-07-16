@@ -404,12 +404,21 @@ class Storage implements IStorage {
         return newConfig;
       }
 
+      // HARDCODED STRICT RULE: Always ensure correct article distribution
+      const strictConfig = {
+        ...configUpdate,
+        // STRICT RULE: 10 Indian + 10 International articles per source
+        indianArticlesPerSource: 10,
+        internationalArticlesPerSource: 10,
+        // STRICT RULE: Always extract full content and enable categorization
+        extractFullContent: true,
+        enableCategorization: true,
+        updatedAt: new Date(),
+      };
+
       const [updatedConfig] = await db
         .update(scraperConfig)
-        .set({
-          ...configUpdate,
-          updatedAt: new Date(),
-        })
+        .set(strictConfig)
         .where(eq(scraperConfig.id, config.id))
         .returning();
 
