@@ -4,9 +4,27 @@ import path from "path";
 import { registerRoutes } from "./routes";
 import { createServer } from "http";
 import { fileURLToPath } from "url";
+import { exec } from "child_process";
+import { promisify } from "util";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const execAsync = promisify(exec);
+
+// Install Python requirements on startup (non-blocking)
+function installPythonRequirements() {
+  exec('pip install -r requirements.txt', (error, stdout, stderr) => {
+    if (error) {
+      console.log('Note: Python requirements installation failed or already installed');
+    } else {
+      console.log('Python requirements installed successfully');
+    }
+  });
+}
+
+// Install requirements in background (non-blocking)
+installPythonRequirements();
 
 const app = express();
 const port = process.env.PORT || 5000;
