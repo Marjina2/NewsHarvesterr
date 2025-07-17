@@ -220,43 +220,115 @@ class NewsScraper:
             }
 
     def _extract_content_fallback(self, url: str, html: str) -> str:
-        """Fallback content extraction using BeautifulSoup"""
+        """Enhanced fallback content extraction for all news sites"""
         try:
             from bs4 import BeautifulSoup
             soup = BeautifulSoup(html, 'html.parser')
             
             # Remove unwanted elements
-            for element in soup(['script', 'style', 'nav', 'header', 'footer', 'aside', 'form']):
+            for element in soup(['script', 'style', 'nav', 'header', 'footer', 'aside', 'form', 'iframe', 'noscript']):
                 element.decompose()
             
-            # Try common article selectors
-            content_selectors = [
-                'article',
-                '[role="main"]',
-                '.article-content',
-                '.story-content',
-                '.post-content',
-                '.content',
-                '.entry-content',
-                '.article-body',
-                '.story-body',
-                'main'
-            ]
+            domain = urlparse(url).netloc.lower()
             
+            # Site-specific selectors for better content extraction
+            site_selectors = {
+                'timesofindia.indiatimes.com': [
+                    '.Normal', '.ga-headline', '._s30J', '.yYiw2',
+                    '.story_content', '.article_content', '.article-body',
+                    '.story-body', '.post-content', '.content-body'
+                ],
+                'indiatoday.in': [
+                    '.story-details', '.story-content', '.description',
+                    '.content-body', '.post-content', '.story-body'
+                ],
+                'ndtv.com': [
+                    '.ins_storybody', '.story-content', '.content-body',
+                    '.article-body', '.story-body', '.post-content'
+                ],
+                'thehindu.com': [
+                    '.articlebodycontent', '.article-body', '.story-content',
+                    '.content-body', '.post-content', '.story-body'
+                ],
+                'economictimes.indiatimes.com': [
+                    '.Normal', '.articleText', '.article-body',
+                    '.story-content', '.content-body', '.post-content'
+                ],
+                'bbc.com': [
+                    '.story-body__inner', '.story-body', '.article-body',
+                    '.content-body', '.post-content'
+                ],
+                'cnn.com': [
+                    '.zn-body__paragraph', '.paragraph', '.article-body',
+                    '.story-body', '.content-body'
+                ],
+                'techcrunch.com': [
+                    '.article-content', '.entry-content', '.post-content',
+                    '.article-body', '.story-body'
+                ],
+                'theverge.com': [
+                    '.duet--article--article-body-component', '.article-body',
+                    '.entry-content', '.post-content'
+                ]
+            }
+            
+            # Try site-specific selectors first
             content = ""
-            for selector in content_selectors:
-                elements = soup.select(selector)
-                if elements:
-                    content = ' '.join([elem.get_text(strip=True) for elem in elements])
-                    if len(content) > 200:  # Found substantial content
-                        break
+            if any(site in domain for site in site_selectors):
+                for site in site_selectors:
+                    if site in domain:
+                        for selector in site_selectors[site]:
+                            elements = soup.select(selector)
+                            if elements:
+                                content = ' '.join([elem.get_text(strip=True) for elem in elements])
+                                if len(content) > 300:  # Found substantial content
+                                    break
+                        if len(content) > 300:
+                            break
             
-            # If still no good content, try paragraph extraction
-            if not content or len(content) < 200:
+            # If site-specific failed, try common selectors
+            if not content or len(content) < 300:
+                common_selectors = [
+                    'article', '[role="main"]', '.article-content', '.story-content',
+                    '.post-content', '.content', '.entry-content', '.article-body',
+                    '.story-body', 'main', '.content-body', '.article-text'
+                ]
+                
+                for selector in common_selectors:
+                    elements = soup.select(selector)
+                    if elements:
+                        content = ' '.join([elem.get_text(strip=True) for elem in elements])
+                        if len(content) > 300:  # Found substantial content
+                            break
+            
+            # If still no good content, try paragraph extraction with better filtering
+            if not content or len(content) < 300:
                 paragraphs = soup.find_all('p')
-                content = ' '.join([p.get_text(strip=True) for p in paragraphs if len(p.get_text(strip=True)) > 50])
+                paragraph_texts = []
+                for p in paragraphs:
+                    text = p.get_text(strip=True)
+                    # Filter out short paragraphs, navigation, and ads
+                    if (len(text) > 50 and 
+                        not any(skip in text.lower() for skip in ['subscribe', 'advertisement', 'follow us', 'share', 'tweet', 'facebook', 'copyright', 'terms of service', 'privacy policy', 'cookie policy'])):
+                        paragraph_texts.append(text)
+                
+                content = ' '.join(paragraph_texts)
             
-            return content.strip()
+            # Clean up the content
+            content = content.strip()
+            
+            # Remove duplicate sentences (common in news sites)
+            if content:
+                sentences = content.split('. ')
+                unique_sentences = []
+                seen = set()
+                for sentence in sentences:
+                    if sentence not in seen and len(sentence) > 20:
+                        unique_sentences.append(sentence)
+                        seen.add(sentence)
+                content = '. '.join(unique_sentences)
+            
+            return content
             
         except Exception as e:
             logger.warning(f"Fallback content extraction failed for {url}: {str(e)}")
@@ -864,7 +936,7 @@ class NewsScraper:
                 return self.scrape_generic_news(url, "India Today")
 
     def scrape_ndtv(self, url: str) -> List[Dict]:
-        """Scrape NDTV headlines"""
+        """Enhanced NDTV scraping with complete content extraction"""
         try:
             # NDTV RSS feed
             rss_url = "https://feeds.feedburner.com/ndtvnews-top-stories"
@@ -874,23 +946,46 @@ class NewsScraper:
             soup = BeautifulSoup(response.content, 'xml')
             articles = []
 
-            items = soup.find_all('item')[:15]
+            items = soup.find_all('item')[:20]  # Increased count
 
             for item in items:
                 title_elem = item.find('title')
                 link_elem = item.find('link')
+                desc_elem = item.find('description')
 
                 if title_elem and title_elem.text:
                     title = title_elem.text.strip()
                     if len(title) > 20:
                         article_url = link_elem.text.strip() if link_elem else ""
 
+                        # Enhanced full article extraction
                         article_details = self.extract_full_article(article_url) if article_url else {}
+                        
+                        # Use RSS description as fallback if full content extraction fails
+                        if not article_details.get('fullContent') and desc_elem:
+                            article_details['fullContent'] = desc_elem.text.strip() if desc_elem.text else ""
+                        
+                        # If still no content, try direct scraping
+                        if not article_details.get('fullContent') and article_url:
+                            try:
+                                direct_response = self.session.get(article_url, timeout=8)
+                                direct_response.raise_for_status()
+                                fallback_content = self._extract_content_fallback(article_url, direct_response.text)
+                                if fallback_content:
+                                    article_details['fullContent'] = fallback_content
+                            except:
+                                pass
+                        
+                        # Ensure we always have some content
+                        if not article_details.get('fullContent'):
+                            article_details['fullContent'] = f"Complete article available at NDTV: {article_url}"
 
                         articles.append({
                             'title': title,
                             'url': article_url,
                             'source': 'NDTV',
+                            'category': self.categorize_article(title, article_details.get('fullContent', ''), 'NDTV'),
+                            'region': 'indian' if any(keyword in title.lower() for keyword in ['india', 'indian', 'delhi', 'mumbai', 'bengaluru', 'kolkata', 'chennai', 'hyderabad', 'pune', 'ahmedabad', 'bjp', 'congress', 'modi', 'rahul']) else 'international',
                             **article_details
                         })
 
@@ -901,7 +996,7 @@ class NewsScraper:
             return self.scrape_generic_news(url, "NDTV")
 
     def scrape_times_of_india(self, url: str) -> List[Dict]:
-        """Scrape Times of India headlines"""
+        """Enhanced Times of India scraping with complete content extraction"""
         try:
             # Times of India RSS feed
             rss_url = "https://timesofindia.indiatimes.com/rssfeedstopstories.cms"
@@ -911,23 +1006,46 @@ class NewsScraper:
             soup = BeautifulSoup(response.content, 'xml')
             articles = []
 
-            items = soup.find_all('item')[:15]
+            items = soup.find_all('item')[:20]  # Increased to get more articles
 
             for item in items:
                 title_elem = item.find('title')
                 link_elem = item.find('link')
+                desc_elem = item.find('description')
 
                 if title_elem and title_elem.text:
                     title = title_elem.text.strip()
                     if len(title) > 20:
                         article_url = link_elem.text.strip() if link_elem else ""
-
+                        
+                        # Enhanced full article extraction
                         article_details = self.extract_full_article(article_url) if article_url else {}
+                        
+                        # Use RSS description as fallback if full content extraction fails
+                        if not article_details.get('fullContent') and desc_elem:
+                            article_details['fullContent'] = desc_elem.text.strip() if desc_elem.text else ""
+                        
+                        # If still no content, try one more time with direct scraping
+                        if not article_details.get('fullContent') and article_url:
+                            try:
+                                direct_response = self.session.get(article_url, timeout=8)
+                                direct_response.raise_for_status()
+                                fallback_content = self._extract_content_fallback(article_url, direct_response.text)
+                                if fallback_content:
+                                    article_details['fullContent'] = fallback_content
+                            except:
+                                pass
+                        
+                        # Ensure we always have some content
+                        if not article_details.get('fullContent'):
+                            article_details['fullContent'] = f"Complete article available at Times of India: {article_url}"
 
                         articles.append({
                             'title': title,
                             'url': article_url,
                             'source': 'Times of India',
+                            'category': self.categorize_article(title, article_details.get('fullContent', ''), 'Times of India'),
+                            'region': 'indian' if any(keyword in title.lower() for keyword in ['india', 'indian', 'delhi', 'mumbai', 'bengaluru', 'kolkata', 'chennai', 'hyderabad', 'pune', 'ahmedabad', 'bjp', 'congress', 'modi', 'rahul']) else 'international',
                             **article_details
                         })
 
@@ -975,7 +1093,7 @@ class NewsScraper:
             return self.scrape_generic_news(url, "Hindu")
 
     def scrape_economic_times(self, url: str) -> List[Dict]:
-        """Scrape Economic Times headlines"""
+        """Enhanced Economic Times scraping with complete content extraction"""
         try:
             # Economic Times RSS feed
             rss_url = "https://economictimes.indiatimes.com/rssfeedstopstories.cms"
@@ -985,23 +1103,46 @@ class NewsScraper:
             soup = BeautifulSoup(response.content, 'xml')
             articles = []
 
-            items = soup.find_all('item')[:15]
+            items = soup.find_all('item')[:20]  # Increased count
 
             for item in items:
                 title_elem = item.find('title')
                 link_elem = item.find('link')
+                desc_elem = item.find('description')
 
                 if title_elem and title_elem.text:
                     title = title_elem.text.strip()
                     if len(title) > 20:
                         article_url = link_elem.text.strip() if link_elem else ""
 
+                        # Enhanced full article extraction
                         article_details = self.extract_full_article(article_url) if article_url else {}
+                        
+                        # Use RSS description as fallback if full content extraction fails
+                        if not article_details.get('fullContent') and desc_elem:
+                            article_details['fullContent'] = desc_elem.text.strip() if desc_elem.text else ""
+                        
+                        # If still no content, try direct scraping
+                        if not article_details.get('fullContent') and article_url:
+                            try:
+                                direct_response = self.session.get(article_url, timeout=8)
+                                direct_response.raise_for_status()
+                                fallback_content = self._extract_content_fallback(article_url, direct_response.text)
+                                if fallback_content:
+                                    article_details['fullContent'] = fallback_content
+                            except:
+                                pass
+                        
+                        # Ensure we always have some content
+                        if not article_details.get('fullContent'):
+                            article_details['fullContent'] = f"Complete article available at Economic Times: {article_url}"
 
                         articles.append({
                             'title': title,
                             'url': article_url,
                             'source': 'Economic Times',
+                            'category': self.categorize_article(title, article_details.get('fullContent', ''), 'Economic Times'),
+                            'region': 'indian' if any(keyword in title.lower() for keyword in ['india', 'indian', 'delhi', 'mumbai', 'bengaluru', 'kolkata', 'chennai', 'hyderabad', 'pune', 'ahmedabad', 'bjp', 'congress', 'modi', 'rahul']) else 'international',
                             **article_details
                         })
 
