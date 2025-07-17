@@ -45,3 +45,26 @@ const server = await registerRoutes(app);
 server.listen(port, '0.0.0.0', () => {
   console.log(`Server running on port ${port}`);
 });
+
+// Start Python scheduler in background
+if (process.env.NODE_ENV === 'production') {
+  console.log('Attempting to start Python scheduler...');
+  const pythonProcess = spawn('python', [path.join(__dirname, 'main.py')], {
+    stdio: 'inherit',
+    cwd: __dirname
+  });
+
+  pythonProcess.on('error', (error) => {
+    console.error('Failed to start Python scheduler:', error);
+    console.log('Python scheduler disabled - web scraping will not be available');
+  });
+
+  pythonProcess.on('exit', (code) => {
+    if (code !== 0) {
+      console.error(`Python scheduler exited with code ${code}`);
+      console.log('Python scheduler disabled - web scraping will not be available');
+    }
+  });
+} else {
+  console.log('Development mode - Python scheduler not started');
+}
