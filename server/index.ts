@@ -15,7 +15,7 @@ app.use(express.json());
 
 // In production, serve static files from dist/public
 if (process.env.NODE_ENV === 'production') {
-  const staticPath = path.join(__dirname, '../public');
+  const staticPath = path.join(__dirname, 'public');
   app.use(express.static(staticPath));
 
   // Serve index.html for all non-API routes (SPA routing)
