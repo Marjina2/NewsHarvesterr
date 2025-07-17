@@ -347,8 +347,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateScraperConfig({ isActive: true });
       
       // Start Python scraper service
-      const pythonPath = path.join(process.cwd(), "server", "main.py");
-      const pythonProcess = spawn("python", [pythonPath, "start"], {
+      const pythonPath = path.join(process.cwd(), "server", "scraper_standalone.py");
+      const pythonProcess = spawn("python3", [pythonPath, "run"], {
         stdio: "inherit",
         detached: true,
       });
@@ -362,13 +362,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/scraper/stop", requireAuth, async (req, res) => {
     try {
       await storage.updateScraperConfig({ isActive: false });
-      
-      // Stop Python scraper service
-      const pythonPath = path.join(process.cwd(), "server", "main.py");
-      const pythonProcess = spawn("python", [pythonPath, "stop"], {
-        stdio: "inherit",
-        detached: true,
-      });
       
       res.json({ success: true, message: "Scraper stopped successfully" });
     } catch (error) {

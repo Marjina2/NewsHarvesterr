@@ -1,0 +1,6 @@
+# Minimal requirements for standalone scraper
+beautifulsoup4>=4.13.4
+lxml>=6.0.0
+requests>=2.32.4
+schedule>=1.2.2
+python-dateutil>=2.8.2
