@@ -1,23 +1,31 @@
+
 services:
   - type: web
-    name: news-scraper-dashboard
-    env: node
-    plan: starter
-    buildCommand: npm install && python3 -m pip install --user -r requirements.txt && npm run build
-    startCommand: npm start
+    name: pulseebackend
+    env: python
+    buildCommand: |
+      # Install Node.js dependencies and build frontend
+      npm install
+      npm run build
+      
+      # Install Python dependencies
+      pip install --upgrade pip
+      pip install -r requirements.txt
+      
+      # Download NLTK data
+      python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords')"
+    startCommand: uvicorn server.main:app --host 0.0.0.0 --port 10000
     envVars:
-      - key: NODE_ENV
-        value: production
       - key: DATABASE_URL
         fromDatabase:
-          name: news-scraper-db
+          name: newsdb
           property: connectionString
-      - key: MASTER_TOKEN
-        generateValue: true
-    healthCheckPath: /api/health
+      - key: NODE_ENV
+        value: production
+      - key: PYTHON_VERSION
+        value: 3.11.6
 
 databases:
-  - name: news-scraper-db
-    databaseName: news_scraper
-    user: news_scraper_user
-    plan: starter
+  - name: newsdb
+    databaseName: newsdb
+    user: newsuser
