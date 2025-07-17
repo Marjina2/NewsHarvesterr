@@ -1,5 +1,5 @@
 {
   "interval_minutes": 20,
-  "is_active": false,
-  "last_run": "2025-07-16T05:04:44.806346"
+  "is_active": true,
+  "last_run": "2025-07-17T08:08:45.710585"
 }
