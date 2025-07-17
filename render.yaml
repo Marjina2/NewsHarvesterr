@@ -1,3 +1,4 @@
+
 services:
   - type: web
     name: news-scraper-dashboard
@@ -12,6 +13,8 @@ services:
         fromDatabase:
           name: news-scraper-db
           property: connectionString
+      - key: MASTER_TOKEN
+        generateValue: true
     healthCheckPath: /api/health
 
 databases:

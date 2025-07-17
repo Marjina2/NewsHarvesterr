@@ -9,6 +9,9 @@ Set these in your Render dashboard:
 # Database (Required)
 DATABASE_URL=postgresql://username:password@host:port/database
 
+# Authentication (Required)
+MASTER_TOKEN=your_secure_master_token_32_chars_minimum
+
 # Optional - For AI headline rephrasing
 OPENROUTER_API_KEY=your_openrouter_api_key
 
@@ -51,16 +54,32 @@ Add these environment variables in Render dashboard:
 - `OPENROUTER_API_KEY` - (Optional) For AI features
 - `NODE_ENV` - Set to "production"
 
-**CRITICAL**: The DATABASE_URL must be a valid PostgreSQL connection string. The application has been fixed to properly use this variable for all database connections.
+**CRITICAL**: The DATABASE_URL must be a valid PostgreSQL connection string.
 
 ### Step 4: Database Migration
-After first deployment, run:
+After first deployment, run database setup:
 ```bash
-npm run db:push
+# The app will automatically create tables on first run
+# No manual migration needed
 ```
 
 ## Health Check
 The app includes a health check endpoint at `/api/health` for monitoring.
+
+## Post-Deployment Verification
+
+### Health Checks
+- [ ] `/api/health` returns 200 status
+- [ ] Dashboard loads at root URL
+- [ ] API endpoints respond correctly
+
+### Functionality Tests
+- [ ] News articles display properly
+- [ ] Pagination works (20 articles per page)
+- [ ] Category and region filters function
+- [ ] Images load correctly
+- [ ] Scraper controls work
+- [ ] Sources can be managed
 
 ## Troubleshooting
 
@@ -74,74 +93,34 @@ The app includes a health check endpoint at `/api/health` for monitoring.
 **Database Connection**
 - Verify DATABASE_URL format: `postgresql://user:pass@host:port/db`
 - Check database is accessible from Render  
-- Run database migrations after deployment
-- **FIXED**: Removed hardcoded Supabase error that was blocking deployment
+- Database tables are created automatically on first run
 
 **Authentication Issues**
 - Ensure MASTER_TOKEN is set in environment variables
 - Token should be at least 32 characters long
-- All API endpoints are now protected with authentication
+- All API endpoints are protected with authentication
 
-**Python Dependencies**
-- Python services run as child processes
-- Ensure all Python packages are in requirements.txt
-- Check Python version compatibility
+**Static File Serving**
+- Production build serves files from dist/public/
+- SPA routing handled automatically
+- API routes preserved under /api/*
 
 ### Performance Optimization
 - Use Render's auto-scaling features
-- Enable CDN for static assets
 - Monitor memory usage and upgrade plan if needed
-
-## Post-Deployment
-
-### 1. Verify Health
-Visit: `https://your-app.onrender.com/api/health`
-
-### 2. Test Core Functions
-- Dashboard loads correctly
-- News sources can be added
-- Scraper can be started/stopped
-- Articles display properly
-
-### 3. Monitor Logs
-Check Render logs for any runtime errors or warnings.
+- Database connection pooling included
 
 ## Production Configuration
 
-### Database
-- Use Render PostgreSQL for production
-- Enable automated backups
-- Set appropriate connection limits
-
 ### Security
 - All API keys stored as environment variables
-- CORS configured for production domain
+- Authentication required for all API endpoints
 - Input validation on all endpoints
 
 ### Monitoring
 - Health check endpoint for uptime monitoring
-- Error tracking and logging
-- Performance metrics collection
-
-## Scaling Considerations
-
-### Performance
-- Current setup handles ~1000 articles efficiently
-- Scraping runs in background processes
-- Database optimized with indexes
-
-### Limits
-- Render free tier: 750 hours/month
-- Database connections: Monitor usage
-- Memory: 512MB default (upgrade if needed)
-
-## Support
-
-For deployment issues:
-1. Check Render build logs
-2. Verify environment variables
-3. Test database connectivity
-4. Review application logs
+- Console logging for debugging
+- Database connection status monitoring
 
 ## Useful Commands
 
@@ -152,8 +131,6 @@ npm start
 
 # Database operations
 npm run db:push
-npm run db:studio
 
-# Check logs
-render logs --service your-service-name
-```
+# Check logs on Render
+# View in Render dashboard logs section
