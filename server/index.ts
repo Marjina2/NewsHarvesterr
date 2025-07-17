@@ -50,9 +50,9 @@ server.listen(port, '0.0.0.0', () => {
 // Start Python scheduler in background
 if (process.env.NODE_ENV === 'production') {
   console.log('Attempting to start Python scheduler...');
-  const pythonProcess = spawn('python', [path.join(__dirname, 'main.py')], {
+  const pythonProcess = spawn('python3', [path.join(__dirname, '..', 'server', 'main.py'), 'start'], {
     stdio: 'inherit',
-    cwd: __dirname
+    cwd: path.join(__dirname, '..', 'server')
   });
 
   pythonProcess.on('error', (error) => {
