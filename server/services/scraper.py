@@ -71,22 +71,18 @@ class NewsScraper:
                 except:
                     pass  # Continue without NLP if it fails
 
-                # Extract complete content with embedded media handling
+                # Extract complete content with enhanced fallback
                 content = article.text.strip() if article.text else ""
                 
-                # Enhanced content extraction with media link preservation
-                if not content or len(content) < 200:
-                    content = self._extract_complete_content_with_media(url, article.html)
+                # Fallback content extraction if newspaper3k fails
+                if not content or len(content) < 100:
+                    content = self._extract_content_fallback(url, article.html)
                 
                 # Additional enhancement: Extract and preserve embedded media URLs
                 if article.html and content:
                     media_content = self._extract_media_links(article.html, url)
                     if media_content:
                         content = content + "\n\n" + media_content
-                
-                # If still insufficient, try newspaper3k fallback
-                if not content or len(content) < 100:
-                    content = self._extract_content_fallback(url, article.html)
                 
                 excerpt = content[:500] + "..." if len(content) > 500 else content
 

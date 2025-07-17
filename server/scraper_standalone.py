@@ -118,21 +118,9 @@ class NewsScraperStandalone:
             return []
 
     def rephrase_headlines(self, articles: List[Dict]) -> List[Dict]:
-        """Rephrase headlines using AI"""
-        if not self.ai_rephraser:
-            logger.warning("AI rephraser not available, skipping headline rephrasing")
-            return articles
-        
-        try:
-            for article in articles:
-                if not article.get('rephrasedTitle') and article.get('title'):
-                    rephrased = self.ai_rephraser.rephrase_headline(article['title'], article.get('source', 'Unknown'))
-                    if rephrased:
-                        article['rephrasedTitle'] = rephrased
-            return articles
-        except Exception as e:
-            logger.error(f"Error rephrasing headlines: {e}")
-            return articles
+        """Skip AI rephrasing as requested by user"""
+        logger.info("Skipping AI rephrasing as per user request")
+        return articles
 
     def run_scraper(self):
         """Run the scraper for all active sources"""
@@ -168,18 +156,34 @@ class NewsScraperStandalone:
                     saved_count = 0
                     for article in articles:
                         # Format article for backend schema
+                        published_at = article.get('publishedAt')
+                        
+                        # Handle different timestamp formats
+                        if published_at:
+                            if not isinstance(published_at, str):
+                                # Convert to ISO string if it's a date object
+                                try:
+                                    published_at = published_at.isoformat() if hasattr(published_at, 'isoformat') else str(published_at)
+                                except:
+                                    published_at = None
+                            elif published_at == "":
+                                published_at = None
+                        
                         formatted_article = {
                             'sourceName': article.get('source', source['name']),
                             'originalTitle': article.get('title', ''),
                             'originalUrl': article.get('url', ''),
-                            'fullContent': article.get('content', ''),
+                            'fullContent': article.get('fullContent', article.get('content', '')),
                             'excerpt': article.get('excerpt', ''),
-                            'publishedAt': article.get('publishedAt', None),
+                            'publishedAt': published_at,
                             'imageUrl': article.get('imageUrl', ''),
                             'author': article.get('author', ''),
                             'category': article.get('category', 'general'),
                             'region': article.get('region', 'international')
                         }
+                        
+                        # Debug log to help identify issues
+                        logger.debug(f"Formatted article: {formatted_article['originalTitle'][:50]}...")
                         
                         if self.save_article(formatted_article):
                             saved_count += 1
