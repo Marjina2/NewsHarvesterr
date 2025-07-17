@@ -5,6 +5,7 @@ import { insertNewsSourceSchema, insertNewsArticleSchema, updateScraperConfigSch
 import { z } from "zod";
 import { spawn } from "child_process";
 import path from "path";
+import { setupVite, serveStatic } from "./vite";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint for Render
@@ -425,5 +426,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  
+  // Set up Vite development server in development mode
+  if (process.env.NODE_ENV === "development") {
+    await setupVite(app, httpServer);
+  } else {
+    // In production, serve static files
+    serveStatic(app);
+  }
+  
   return httpServer;
 }

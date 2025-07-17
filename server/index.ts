@@ -26,18 +26,6 @@ if (process.env.NODE_ENV === 'production') {
     }
     res.sendFile(path.join(staticPath, 'index.html'));
   });
-} else {
-  // In development, provide a helpful message for root route
-  app.get('/', (req, res) => {
-    res.json({
-      message: 'News Scraper API Server',
-      status: 'running',
-      environment: 'development',
-      frontend_url: 'Open the frontend in a new tab or use the webview',
-      api_health: '/api/health',
-      documentation: 'Check README.md for API endpoints'
-    });
-  });
 }
 
 // Register API routes
