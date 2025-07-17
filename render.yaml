@@ -4,7 +4,7 @@ services:
     name: news-scraper-dashboard
     env: node
     plan: starter
-    buildCommand: npm install && npm run build
+    buildCommand: npm install && pip install -r requirements.txt && npm run build
     startCommand: npm start
     envVars:
       - key: NODE_ENV
