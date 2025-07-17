@@ -1,0 +1,54 @@
+Database connection established successfully
+==> Your service is live 🎉
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+==> Available at your primary URL https://pulseebackend.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+==> ///////////////////////////////////////////////////////////
+INFO:__main__:Scraper services initialized successfully
+INFO:__main__:Starting news scraper run...
+INFO:__main__:Found 17 active sources
+WARNING:__main__:NewsScraper service not available
+INFO:__main__:Scraped 0 articles from The Verge
+WARNING:__main__:NewsScraper service not available
+INFO:__main__:Scraped 0 articles from Ars Technica
+WARNING:__main__:NewsScraper service not available
+INFO:__main__:Scraped 0 articles from Engadget
+WARNING:__main__:NewsScraper service not available
+INFO:__main__:Scraped 0 articles from WIRED
+WARNING:__main__:NewsScraper service not available
+INFO:__main__:Scraped 0 articles from Economic Times
+WARNING:__main__:NewsScraper service not available
+INFO:__main__:Scraped 0 articles from The Hindu
+WARNING:__main__:NewsScraper service not available
+INFO:__main__:Scraped 0 articles from Times of India
+WARNING:__main__:NewsScraper service not available
+INFO:__main__:Scraped 0 articles from NDTV
+WARNING:__main__:NewsScraper service not available
+INFO:__main__:Scraped 0 articles from India Today
+WARNING:__main__:NewsScraper service not available
+INFO:__main__:Scraped 0 articles from Associated Press
+WARNING:__main__:NewsScraper service not available
+INFO:__main__:Scraped 0 articles from NPR
+WARNING:__main__:NewsScraper service not available
+INFO:__main__:Scraped 0 articles from The Guardian
+WARNING:__main__:NewsScraper service not available
+INFO:__main__:Scraped 0 articles from CNN
+WARNING:__main__:NewsScraper service not available
+INFO:__main__:Scraped 0 articles from Hacker News
+WARNING:__main__:NewsScraper service not available
+INFO:__main__:Scraped 0 articles from TechCrunch
+WARNING:__main__:NewsScraper service not available
+INFO:__main__:Scraped 0 articles from Reuters
+WARNING:__main__:NewsScraper service not available
+INFO:__main__:Scraped 0 articles from BBC News
+INFO:__main__:Scraper run completed. Total articles saved: 0
+Warning: Could not import scraper services: No module named 'newspaper'
+Scraper services not available - basic functionality only
+Python requirements installed successfully
+==> Detected service running on port 10000
+==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+Need bett

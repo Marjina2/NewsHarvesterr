@@ -110,7 +110,7 @@ class NewsScraperStandalone:
         
         try:
             # Use the scraper service to get articles
-            articles = self.scraper.scrape_source(source)
+            articles = self.scraper.scrape_source(source['url'], source['name'])
             logger.info(f"Scraped {len(articles)} articles from {source['name']}")
             return articles
         except Exception as e:
@@ -125,8 +125,8 @@ class NewsScraperStandalone:
         
         try:
             for article in articles:
-                if not article.get('rephrasedTitle'):
-                    rephrased = self.ai_rephraser.rephrase_headline(article['originalTitle'])
+                if not article.get('rephrasedTitle') and article.get('title'):
+                    rephrased = self.ai_rephraser.rephrase_headline(article['title'], article.get('source', 'Unknown'))
                     if rephrased:
                         article['rephrasedTitle'] = rephrased
             return articles
@@ -167,7 +167,21 @@ class NewsScraperStandalone:
                     # Save articles to backend
                     saved_count = 0
                     for article in articles:
-                        if self.save_article(article):
+                        # Format article for backend schema
+                        formatted_article = {
+                            'sourceName': article.get('source', source['name']),
+                            'originalTitle': article.get('title', ''),
+                            'originalUrl': article.get('url', ''),
+                            'fullContent': article.get('content', ''),
+                            'excerpt': article.get('excerpt', ''),
+                            'publishedAt': article.get('publishedAt', None),
+                            'imageUrl': article.get('imageUrl', ''),
+                            'author': article.get('author', ''),
+                            'category': article.get('category', 'general'),
+                            'region': article.get('region', 'international')
+                        }
+                        
+                        if self.save_article(formatted_article):
                             saved_count += 1
                     
                     logger.info(f"Saved {saved_count}/{len(articles)} articles from {source['name']}")

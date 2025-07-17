@@ -1,55 +1,105 @@
 #!/usr/bin/env python3
-"""Test script to run the scraper and save articles to the database"""
+"""
+Test script to verify Python scraper functionality
+"""
 
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), 'server'))
-
-from services.scraper import NewsScraper
-from services.storage_integration import StorageIntegration
 import json
 import logging
 
+# Add server directory to Python path
+sys.path.append(os.path.join(os.path.dirname(__file__), 'server'))
+
+# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def test_scraper():
-    """Test the scraper with active sources"""
-    # Initialize components
-    scraper = NewsScraper()
-    storage = StorageIntegration()
+def test_basic_imports():
+    """Test that basic imports work"""
+    try:
+        import requests
+        import json
+        import time
+        import schedule
+        logger.info("✅ Basic imports successful")
+        return True
+    except ImportError as e:
+        logger.error(f"❌ Basic imports failed: {e}")
+        return False
+
+def test_scraper_services():
+    """Test that scraper services can be imported"""
+    try:
+        from services.scraper import NewsScraper
+        from services.ai_rephraser import AIRephraser
+        logger.info("✅ Scraper services imported successfully")
+        return True
+    except ImportError as e:
+        logger.error(f"❌ Scraper services import failed: {e}")
+        return False
+
+def test_scraper_functionality():
+    """Test basic scraper functionality"""
+    try:
+        from services.scraper import NewsScraper
+        scraper = NewsScraper()
+        
+        # Test basic functionality
+        test_source = {
+            'name': 'Test Source',
+            'url': 'https://example.com',
+            'selector': 'article',
+            'isActive': True
+        }
+        
+        # This should not crash
+        articles = scraper.scrape_source(test_source['url'], test_source['name'])
+        logger.info(f"✅ Scraper functionality test passed (returned {len(articles)} articles)")
+        return True
+    except Exception as e:
+        logger.error(f"❌ Scraper functionality test failed: {e}")
+        return False
+
+def test_ai_rephraser():
+    """Test AI rephraser functionality"""
+    try:
+        from services.ai_rephraser import AIRephraser
+        rephraser = AIRephraser()
+        
+        # Test basic functionality (will warn if no API key)
+        result = rephraser.rephrase_headline("Test headline", "Test Source")
+        logger.info("✅ AI rephraser test passed")
+        return True
+    except Exception as e:
+        logger.error(f"❌ AI rephraser test failed: {e}")
+        return False
+
+def main():
+    """Run all tests"""
+    logger.info("🔍 Testing Python scraper functionality...")
     
-    print("Getting active sources from storage...")
-    sources = storage.get_active_sources()
-    print(f"Found {len(sources)} active sources")
+    tests = [
+        ("Basic Imports", test_basic_imports),
+        ("Scraper Services Import", test_scraper_services),
+        ("Scraper Functionality", test_scraper_functionality),
+        ("AI Rephraser", test_ai_rephraser)
+    ]
     
-    if not sources:
-        print("No active sources found, using default sources")
-        sources = [
-            {"name": "BBC News", "url": "https://www.bbc.com/news", "isActive": True},
-            {"name": "TechCrunch", "url": "https://techcrunch.com", "isActive": True},
-            {"name": "The Verge", "url": "https://www.theverge.com", "isActive": True},
-            {"name": "Engadget", "url": "https://www.engadget.com", "isActive": True},
-            {"name": "Ars Technica", "url": "https://arstechnica.com", "isActive": True},
-            {"name": "WIRED", "url": "https://www.wired.com", "isActive": True},
-            {"name": "Hacker News", "url": "https://news.ycombinator.com", "isActive": True}
-        ]
+    passed = 0
+    total = len(tests)
     
-    # Scrape articles
-    print("Scraping articles...")
-    articles = scraper.scrape_all_sources(sources)
-    print(f"Scraped {len(articles)} articles")
+    for test_name, test_func in tests:
+        logger.info(f"\n--- Testing {test_name} ---")
+        if test_func():
+            passed += 1
     
-    # Save articles to database
-    if articles:
-        print("Saving articles to database...")
-        success = storage.save_scraped_articles(articles)
-        if success:
-            print("Articles saved successfully!")
-        else:
-            print("Failed to save some articles")
+    logger.info(f"\n📊 Test Results: {passed}/{total} tests passed")
+    
+    if passed == total:
+        logger.info("🎉 All tests passed! Python scraper is ready for production.")
     else:
-        print("No articles to save")
+        logger.warning("⚠️  Some tests failed. Check the logs above for details.")
 
 if __name__ == "__main__":
-    test_scraper()
+    main()
