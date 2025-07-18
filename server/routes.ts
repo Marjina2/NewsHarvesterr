@@ -6,6 +6,7 @@ import { z } from "zod";
 import { spawn } from "child_process";
 import path from "path";
 import { setupVite, serveStatic } from "./vite";
+import { scraperScheduler } from "./scheduler";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint for Render
@@ -122,10 +123,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/articles", requireAuth, async (req, res) => {
     try {
-      const validatedData = insertNewsArticleSchema.parse(req.body);
+      const rawData = req.body;
+      
+      // Fix timestamp formatting - convert string dates to Date objects
+      if (rawData.publishedAt && typeof rawData.publishedAt === 'string') {
+        rawData.publishedAt = new Date(rawData.publishedAt);
+      }
+      if (rawData.scrapedAt && typeof rawData.scrapedAt === 'string') {
+        rawData.scrapedAt = new Date(rawData.scrapedAt);
+      }
+      if (rawData.rephrasedAt && typeof rawData.rephrasedAt === 'string') {
+        rawData.rephrasedAt = new Date(rawData.rephrasedAt);
+      }
+      
+      const validatedData = insertNewsArticleSchema.parse(rawData);
       const article = await storage.createNewsArticle(validatedData);
       res.json(article);
     } catch (error) {
+      console.error('Error creating news article:', error);
       if (error instanceof z.ZodError) {
         res.status(400).json({ error: "Invalid data", details: error.errors });
       } else {
@@ -331,6 +346,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = updateScraperConfigSchema.parse(req.body);
       const config = await storage.updateScraperConfig(validatedData);
+      
+      // Update scheduler interval if it changed
+      if (validatedData.intervalMinutes !== undefined) {
+        await scraperScheduler.updateInterval(validatedData.intervalMinutes);
+      }
+      
       res.json(config);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -346,15 +367,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       await storage.updateScraperConfig({ isActive: true });
       
-      // Start Python scraper service
-      const pythonPath = path.join(process.cwd(), "server", "scraper_standalone.py");
-      const pythonProcess = spawn("python3", [pythonPath, "run"], {
-        stdio: "inherit",
-        detached: true,
-      });
+      // Start the scheduler if not already running
+      if (!scraperScheduler.isActive()) {
+        await scraperScheduler.start();
+      }
       
       res.json({ success: true, message: "Scraper started successfully" });
     } catch (error) {
+      console.error("Failed to start scraper:", error);
       res.status(500).json({ error: "Failed to start scraper" });
     }
   });
@@ -363,8 +383,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       await storage.updateScraperConfig({ isActive: false });
       
+      // Stop the scheduler
+      scraperScheduler.stop();
+      
       res.json({ success: true, message: "Scraper stopped successfully" });
     } catch (error) {
+      console.error("Failed to stop scraper:", error);
       res.status(500).json({ error: "Failed to stop scraper" });
     }
   });

@@ -49,8 +49,26 @@ if (process.env.NODE_ENV === 'production') {
 // Register API routes
 const server = await registerRoutes(app);
 
-server.listen(port, '0.0.0.0', () => {
+// Import scheduler after routes are registered
+import { scraperScheduler } from "./scheduler";
+
+server.listen(port, '0.0.0.0', async () => {
   console.log(`Server running on port ${port}`);
+  
+  // Initialize scheduler in development mode
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      const { storage } = await import("./storage");
+      const config = await storage.getScraperConfig();
+      
+      if (config.isActive) {
+        console.log("Auto-starting scraper scheduler...");
+        await scraperScheduler.start();
+      }
+    } catch (error) {
+      console.log("Note: Could not auto-start scheduler:", error.message);
+    }
+  }
 });
 
 // Start Python scheduler in background

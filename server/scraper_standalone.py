@@ -223,26 +223,32 @@ def main():
     if len(sys.argv) > 1:
         command = sys.argv[1]
         
-        # Use environment variable for base URL in production
-        base_url = os.getenv('BASE_URL', 'http://localhost:5000')
-        if os.getenv('NODE_ENV') == 'production':
-            base_url = 'https://pulseebackend.onrender.com'
+        scraper = NewsScraperStandalone()
         
-        scraper = NewsScraperStandalone(base_url)
-        
-        if command == 'start':
-            scraper.start_scheduler()
-        elif command == 'run':
+        if command == "scrape":
+            # Run a single scrape operation
+            logger.info("Running single scrape operation...")
             scraper.run_scraper()
-        elif command == 'stop':
-            logger.info("Stopping scraper...")
-            sys.exit(0)
+            
+        elif command == "run":
+            # Run the scheduler (original functionality)
+            logger.info("Starting scheduler...")
+            scraper.start_scheduler()
+            
+        elif command == "test":
+            # Test connection
+            logger.info("Testing scraper connection...")
+            sources = scraper.get_sources()
+            logger.info(f"Found {len(sources)} sources")
+            config = scraper.get_scraper_config()
+            logger.info(f"Config: {config}")
+            
         else:
             logger.error(f"Unknown command: {command}")
-            sys.exit(1)
+            logger.info("Available commands: scrape, run, test")
     else:
-        logger.error("Usage: python scraper_standalone.py [start|run|stop]")
-        sys.exit(1)
+        logger.error("No command provided")
+        logger.info("Available commands: scrape, run, test")
 
 if __name__ == "__main__":
     main()
