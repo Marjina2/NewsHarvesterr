@@ -1373,6 +1373,305 @@ class NewsScraper:
         else:
             return self.scrape_generic_news(url, source_name)
 
+    def scrape_source_comprehensive(self, url: str, source_name: str) -> List[Dict]:
+        """
+        COMPREHENSIVE SCRAPING: Extract ALL available articles from a source's main page
+        This method scrapes from top to bottom, collecting every visible article link
+        """
+        try:
+            logger.info(f"COMPREHENSIVE: Starting complete extraction from {source_name}")
+            
+            # Use domain-specific scraper first for better results
+            domain = urlparse(url).netloc.lower()
+            
+            # Use existing specialized scrapers but enhance them for comprehensive data
+            if 'bbc.com' in domain:
+                articles = self.scrape_bbc_comprehensive(url)
+            elif 'reuters.com' in domain:
+                articles = self.scrape_reuters_comprehensive(url)
+            elif 'cnn.com' in domain:
+                articles = self.scrape_cnn_comprehensive(url)
+            elif 'theguardian.com' in domain:
+                articles = self.scrape_guardian_comprehensive(url)
+            elif 'npr.org' in domain:
+                articles = self.scrape_npr_comprehensive(url)
+            elif 'apnews.com' in domain:
+                articles = self.scrape_ap_comprehensive(url)
+            elif 'ycombinator.com' in domain:
+                articles = self.scrape_hackernews_comprehensive(url)
+            elif 'indiatoday.in' in domain:
+                articles = self.scrape_india_today_comprehensive(url)
+            elif 'ndtv.com' in domain:
+                articles = self.scrape_ndtv_comprehensive(url)
+            elif 'timesofindia.indiatimes.com' in domain:
+                articles = self.scrape_times_of_india_comprehensive(url)
+            elif 'thehindu.com' in domain:
+                articles = self.scrape_hindu_comprehensive(url)
+            elif 'economictimes.indiatimes.com' in domain:
+                articles = self.scrape_economic_times_comprehensive(url)
+            elif 'techcrunch.com' in domain:
+                articles = self.scrape_techcrunch_comprehensive(url)
+            elif 'wired.com' in domain:
+                articles = self.scrape_wired_comprehensive(url)
+            elif 'engadget.com' in domain:
+                articles = self.scrape_engadget_comprehensive(url)
+            elif 'arstechnica.com' in domain:
+                articles = self.scrape_ars_technica_comprehensive(url)
+            elif 'theverge.com' in domain:
+                articles = self.scrape_verge_comprehensive(url)
+            else:
+                articles = self.scrape_generic_comprehensive(url, source_name)
+            
+            logger.info(f"COMPREHENSIVE: Extracted {len(articles)} total articles from {source_name}")
+            return articles
+            
+        except Exception as e:
+            logger.error(f"COMPREHENSIVE scraping failed for {source_name}: {e}")
+            # Fallback to existing method
+            return self.scrape_source(url, source_name)
+
+    def scrape_generic_comprehensive(self, url: str, source_name: str) -> List[Dict]:
+        """
+        COMPREHENSIVE GENERIC SCRAPER: Extract ALL articles from any news source
+        Scrapes every visible article link from top to bottom of the page
+        """
+        try:
+            import random
+            time.sleep(random.uniform(0.5, 1.5))
+            
+            response = self.session.get(url, timeout=20, allow_redirects=True)
+            response.raise_for_status()
+
+            soup = BeautifulSoup(response.content, 'html.parser')
+            articles = []
+            seen_urls = set()
+
+            # COMPREHENSIVE SELECTORS - Extract EVERYTHING
+            comprehensive_selectors = [
+                # Primary article containers (high priority)
+                'article a[href*="/"]', 'article h1 a', 'article h2 a', 'article h3 a',
+                '.article a[href*="/"]', '.story a[href*="/"]', '.post a[href*="/"]',
+                '.news-item a[href*="/"]', '.story-card a[href*="/"]', '.article-card a[href*="/"]',
+                
+                # Headlines and titles (medium priority)
+                'h1 a[href*="/"]', 'h2 a[href*="/"]', 'h3 a[href*="/"]', 'h4 a[href*="/"]',
+                '.headline a[href*="/"]', '.title a[href*="/"]', '.article-title a[href*="/"]',
+                '.story-headline a[href*="/"]', '.news-title a[href*="/"]',
+                '.entry-title a[href*="/"]', '.post-title a[href*="/"]',
+                
+                # Navigation and listing areas
+                '.content a[href*="/"]', '.main a[href*="/"]', '.primary a[href*="/"]',
+                '.articles a[href*="/"]', '.stories a[href*="/"]', '.posts a[href*="/"]',
+                '.news a[href*="/"]', '.feed a[href*="/"]', '.list a[href*="/"]',
+                
+                # Data attributes (modern websites)
+                '[data-testid*="headline"] a[href*="/"]', '[data-testid*="title"] a[href*="/"]',
+                '[data-testid*="story"] a[href*="/"]', '[data-testid*="article"] a[href*="/"]',
+                
+                # Class-based selectors (catch-all)
+                '[class*="headline"] a[href*="/"]', '[class*="title"] a[href*="/"]',
+                '[class*="story"] a[href*="/"]', '[class*="article"] a[href*="/"]',
+                '[class*="news"] a[href*="/"]', '[class*="post"] a[href*="/"]',
+                
+                # Generic link selectors as fallback
+                'a[href*="/news/"]', 'a[href*="/article/"]', 'a[href*="/story/"]',
+                'a[href*="/post/"]', 'a[href*="' + urlparse(url).netloc + '"]'
+            ]
+
+            logger.info(f"COMPREHENSIVE: Scanning {source_name} with {len(comprehensive_selectors)} selector patterns")
+
+            for selector in comprehensive_selectors:
+                try:
+                    elements = soup.select(selector)
+                    for element in elements:
+                        title = element.get_text(strip=True)
+                        article_url = element.get('href', '')
+                        
+                        # Validate article content
+                        if len(title) < 10 or len(title) > 200:  # Reasonable title length
+                            continue
+                            
+                        # Skip navigation, menu, and non-article links
+                        skip_keywords = [
+                            'menu', 'nav', 'footer', 'header', 'sidebar', 'comment', 'share',
+                            'subscribe', 'newsletter', 'login', 'register', 'contact', 'about',
+                            'privacy', 'terms', 'cookie', 'advertise', 'shop', 'buy'
+                        ]
+                        
+                        if any(keyword in title.lower() for keyword in skip_keywords):
+                            continue
+                            
+                        # Normalize URL
+                        if article_url.startswith('/'):
+                            article_url = urljoin(url, article_url)
+                        elif not article_url.startswith(('http://', 'https://')):
+                            continue
+                            
+                        # Skip duplicates
+                        if article_url in seen_urls:
+                            continue
+                        seen_urls.add(article_url)
+                        
+                        # Skip obvious non-article URLs
+                        skip_url_patterns = [
+                            '/tag/', '/category/', '/author/', '/search/', '/page/',
+                            '/feed/', '/rss/', '/sitemap/', '/archive/', '/contact/',
+                            '.pdf', '.jpg', '.png', '.gif', '.mp4', '.video'
+                        ]
+                        
+                        if any(pattern in article_url.lower() for pattern in skip_url_patterns):
+                            continue
+
+                        # Extract article content (without full article extraction for speed)
+                        article_data = {
+                            'title': title,
+                            'url': article_url,
+                            'source': source_name,
+                            'fullContent': title,  # Use title as initial content
+                            'excerpt': title[:200] + '...' if len(title) > 200 else title,
+                            'publishedAt': None,
+                            'imageUrl': '',
+                            'author': '',
+                            'category': self.categorize_article(title, title, source_name),
+                            'region': self.get_article_region(title, source_name)
+                        }
+                        
+                        articles.append(article_data)
+                        
+                        # Log progress every 50 articles
+                        if len(articles) % 50 == 0:
+                            logger.info(f"COMPREHENSIVE: Collected {len(articles)} articles from {source_name}")
+                            
+                        # Reasonable limit to prevent infinite collection
+                        if len(articles) >= 200:  # Collect up to 200 articles per source
+                            logger.info(f"COMPREHENSIVE: Reached limit of 200 articles for {source_name}")
+                            break
+                            
+                except Exception as e:
+                    logger.debug(f"Selector '{selector}' failed for {source_name}: {e}")
+                    continue
+                    
+                if len(articles) >= 200:
+                    break
+
+            # Remove duplicates based on title similarity
+            unique_articles = []
+            seen_titles = set()
+            
+            for article in articles:
+                title_key = article['title'].lower().strip()[:50]  # First 50 chars for similarity
+                if title_key not in seen_titles:
+                    seen_titles.add(title_key)
+                    unique_articles.append(article)
+
+            logger.info(f"COMPREHENSIVE: Final result - {len(unique_articles)} unique articles from {source_name}")
+            return unique_articles[:150]  # Final limit per source
+
+        except Exception as e:
+            logger.error(f"COMPREHENSIVE generic scraping failed for {source_name}: {e}")
+            return []
+
+    def scrape_bbc_comprehensive(self, url: str) -> List[Dict]:
+        """Comprehensive BBC scraping - extract all visible articles"""
+        # First get from RSS for structured data
+        articles = self.scrape_bbc_news(url)
+        
+        # Then get additional articles from main page
+        additional = self.scrape_generic_comprehensive(url, "BBC News")
+        
+        # Combine and deduplicate
+        all_titles = {article['title'].lower() for article in articles}
+        for article in additional:
+            if article['title'].lower() not in all_titles:
+                articles.append(article)
+                
+        return articles[:100]  # Limit BBC to 100 articles
+
+    def scrape_cnn_comprehensive(self, url: str) -> List[Dict]:
+        """Comprehensive CNN scraping"""
+        articles = self.scrape_cnn(url)
+        additional = self.scrape_generic_comprehensive(url, "CNN")
+        
+        all_titles = {article['title'].lower() for article in articles}
+        for article in additional:
+            if article['title'].lower() not in all_titles:
+                articles.append(article)
+                
+        return articles[:100]
+
+    def scrape_guardian_comprehensive(self, url: str) -> List[Dict]:
+        """Comprehensive Guardian scraping"""
+        articles = self.scrape_guardian(url)
+        additional = self.scrape_generic_comprehensive(url, "The Guardian")
+        
+        all_titles = {article['title'].lower() for article in articles}
+        for article in additional:
+            if article['title'].lower() not in all_titles:
+                articles.append(article)
+                
+        return articles[:100]
+
+    def scrape_times_of_india_comprehensive(self, url: str) -> List[Dict]:
+        """Comprehensive Times of India scraping"""
+        articles = self.scrape_times_of_india(url)
+        additional = self.scrape_generic_comprehensive(url, "Times of India")
+        
+        all_titles = {article['title'].lower() for article in articles}
+        for article in additional:
+            if article['title'].lower() not in all_titles:
+                articles.append(article)
+                
+        return articles[:100]
+
+    def scrape_ndtv_comprehensive(self, url: str) -> List[Dict]:
+        """Comprehensive NDTV scraping"""
+        articles = self.scrape_ndtv(url)
+        additional = self.scrape_generic_comprehensive(url, "NDTV")
+        
+        all_titles = {article['title'].lower() for article in articles}
+        for article in additional:
+            if article['title'].lower() not in all_titles:
+                articles.append(article)
+                
+        return articles[:100]
+
+    # Add fallback methods for sources that don't have comprehensive versions yet
+    def scrape_reuters_comprehensive(self, url: str) -> List[Dict]:
+        return self.scrape_generic_comprehensive(url, "Reuters")
+        
+    def scrape_npr_comprehensive(self, url: str) -> List[Dict]:
+        return self.scrape_generic_comprehensive(url, "NPR")
+        
+    def scrape_ap_comprehensive(self, url: str) -> List[Dict]:
+        return self.scrape_generic_comprehensive(url, "Associated Press")
+        
+    def scrape_hackernews_comprehensive(self, url: str) -> List[Dict]:
+        return self.scrape_generic_comprehensive(url, "Hacker News")
+        
+    def scrape_india_today_comprehensive(self, url: str) -> List[Dict]:
+        return self.scrape_generic_comprehensive(url, "India Today")
+        
+    def scrape_hindu_comprehensive(self, url: str) -> List[Dict]:
+        return self.scrape_generic_comprehensive(url, "The Hindu")
+        
+    def scrape_economic_times_comprehensive(self, url: str) -> List[Dict]:
+        return self.scrape_generic_comprehensive(url, "Economic Times")
+        
+    def scrape_techcrunch_comprehensive(self, url: str) -> List[Dict]:
+        return self.scrape_generic_comprehensive(url, "TechCrunch")
+        
+    def scrape_wired_comprehensive(self, url: str) -> List[Dict]:
+        return self.scrape_generic_comprehensive(url, "WIRED")
+        
+    def scrape_engadget_comprehensive(self, url: str) -> List[Dict]:
+        return self.scrape_generic_comprehensive(url, "Engadget")
+        
+    def scrape_ars_technica_comprehensive(self, url: str) -> List[Dict]:
+        return self.scrape_generic_comprehensive(url, "Ars Technica")
+        
+    def scrape_verge_comprehensive(self, url: str) -> List[Dict]:
+        return self.scrape_generic_comprehensive(url, "The Verge")
+
     def categorize_article(self, title: str, content: str = "", source: str = "") -> str:
         """Enhanced categorization based on title, content, and source"""
         title_lower = title.lower()
@@ -1599,28 +1898,21 @@ class NewsScraper:
 
     def scrape_all_sources(self, sources: List[Dict]) -> List[Dict]:
         """
-        HARDCODED STRICT RULE: Scrape exactly 20 articles per source (10 Indian + 10 International)
-        Total expected articles: source_count * 20
-        This ensures consistent data quality and distribution in Supabase
+        ENHANCED COMPREHENSIVE SCRAPING: Extract ALL available articles from each source's main page
+        This ensures maximum data collection from top to bottom of each news site
         """
         all_articles = []
         seen_titles = set()  # Track titles to prevent duplicates
         
-        # STRICT RULE ENFORCEMENT CONSTANTS
-        ARTICLES_PER_SOURCE = 20
-        INDIAN_ARTICLES_PER_SOURCE = 10
-        INTERNATIONAL_ARTICLES_PER_SOURCE = 10
-        
-        logger.info(f"STRICT RULE ENFORCEMENT: Starting scrape of {len(sources)} sources")
-        logger.info(f"Target: {len(sources)} sources × {ARTICLES_PER_SOURCE} articles = {len(sources) * ARTICLES_PER_SOURCE} total articles")
-        logger.info(f"Distribution per source: {INDIAN_ARTICLES_PER_SOURCE} Indian + {INTERNATIONAL_ARTICLES_PER_SOURCE} International")
+        logger.info(f"COMPREHENSIVE SCRAPING: Starting complete extraction from {len(sources)} sources")
+        logger.info(f"Target: Extract ALL visible articles from each source's main page")
         
         for source in sources:
             if source.get('isActive', True):
-                logger.info(f"STRICT RULE: Scraping {source['name']} for exactly {ARTICLES_PER_SOURCE} articles")
+                logger.info(f"COMPREHENSIVE SCRAPING: Extracting ALL articles from {source['name']}")
                 
-                # Use enhanced scraping method to get exactly 20 articles per source
-                articles = self.scrape_source_with_categories(source['url'], source['name'], ARTICLES_PER_SOURCE)
+                # Use comprehensive scraping method to get all available articles
+                articles = self.scrape_source_comprehensive(source['url'], source['name'])
                 
                 processed_articles = []
                 indian_count = 0
